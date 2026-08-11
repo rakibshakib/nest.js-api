@@ -41,7 +41,43 @@ export class AuthService {
 
     return {
       message: 'User registered successfully',
-      userId: newUser.id,
+      user: {
+        id: newUser.id,
+        email: newUser.email,
+        name: newUser.name,
+      },
+      access_token,
+    };
+  }
+
+  // login user
+  async login(email: string, password: string) {
+    const user = await this.userService.getUserByEmail(email);
+
+    if (!user) {
+      throw new ConflictException('User not found');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new ConflictException('Invalid password');
+    }
+
+    const payload = {
+      sub: user.id,
+      username: user.name,
+      email: user.email,
+    };
+    const access_token = await this.jwtService.signAsync(payload);
+
+    return {
+      message: 'User logged in successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+      },
       access_token,
     };
   }
