@@ -1,35 +1,25 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { UserService } from 'src/user/user.service';
 import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
   constructor(private readonly userService: UserService) {}
+
   async register(request: RegisterDto) {
-    console.log('Register request:', request);
+    const { email, password, name } = request;
 
-    const existingUser = await this.userService.getUserByEmail(request.email);
-    console.log('Existing user:', existingUser);
+    const existingUser = await this.userService.getUserByEmail(email);
 
-    if (existingUser?.email) {
-      return {
-        message: 'User already exists',
-        status: 403, // forbidden
-      };
+    if (existingUser) {
+      throw new ConflictException('User already exists');
     }
 
-    const newUser = await this.userService.createUser(
-      request.email,
-      request.password,
-      request.name,
-    );
-
-    if (newUser?.id) {
-      console.log('New user created:', newUser);
-    }
+    const newUser = await this.userService.createUser(email, password, name);
 
     return {
       message: 'User registered successfully',
+      userId: newUser.id,
     };
   }
 }
