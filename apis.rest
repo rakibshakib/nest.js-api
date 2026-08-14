@@ -7,7 +7,7 @@ Content-Type: application/json
 
 {
   "name": "sssss",
-  "email": "rakib4sss@gmail.com",
+  "email": "user@gmail.com",
   "password": "Rakib@123"
 }
 
@@ -16,6 +16,17 @@ POST http://localhost:3000/api/login
 Content-Type: application/json
 
 {
-  "email": "rakib4s@sgmail.com",
+  "email": "user@gmail.com",
   "password": "Rakib@123"
+}
+
+###
+POST http://localhost:3000/api/notes  
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
+
+{
+  "title": "My Note",
+  "content": "This is the content of my note.",
+  "status": "active"
 }

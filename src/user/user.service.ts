@@ -12,6 +12,17 @@ export class UserService {
     return user;
   }
 
+  async getUserInfoByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+      },
+    });
+  }
+
   // create user
   async createUser(request: RegisterDto) {
     const { email, password, name } = request;

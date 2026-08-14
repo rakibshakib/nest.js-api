@@ -1,7 +1,15 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// 2. run command to create database schema
+// npx prisma db push
+
+// [v] task after creating database schema 
+// 1. migration command to create migration file
+// npx prisma migrate dev --name comment 
+
+// 2. run command to generate prisma client
+// npx prisma generate
 
 generator client {
   provider = "prisma-client"
@@ -17,6 +25,18 @@ model User {
   email     String   @unique
   name      String
   password  String
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  Note      Note[]
+}
+
+model Note {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String
+  status    String   @default("active")
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
