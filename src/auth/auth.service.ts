@@ -1,4 +1,9 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { UserService } from 'src/user/user.service';
@@ -6,6 +11,7 @@ import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
@@ -17,6 +23,9 @@ export class AuthService {
     const existingUser = await this.userService.getUserByEmail(email);
 
     if (existingUser) {
+      this.logger.error('User registration failed: User already exists', {
+        email,
+      });
       throw new ConflictException('User already exists');
     }
 
@@ -39,6 +48,11 @@ export class AuthService {
     };
     const access_token = await this.jwtService.signAsync(payload);
 
+    this.logger.log('New user registered successfully', {
+      userId: newUser.id,
+      email: newUser.email,
+    });
+
     return {
       message: 'User registered successfully',
       user: {
@@ -55,7 +69,7 @@ export class AuthService {
     const user = await this.userService.getUserByEmail(email);
 
     if (!user) {
-      throw new ConflictException('User not found');
+      throw new UnauthorizedException('Email or Password did not matched');
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -70,6 +84,11 @@ export class AuthService {
       email: user.email,
     };
     const access_token = await this.jwtService.signAsync(payload);
+
+    this.logger.log('User logged in successfully', {
+      userId: user.id,
+      email: user.email,
+    });
 
     return {
       message: 'User logged in successfully',
