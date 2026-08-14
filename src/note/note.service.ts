@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { CreateNoteDto } from './dto/create-note.dto';
@@ -39,19 +44,70 @@ export class NoteService {
     };
   }
 
-  findAll() {
-    return `This action returns all note`;
+  async findAll(limit: number, page: number, userId: number) {
+    const allNotes = await this.prisma.note.findMany({
+      take: limit,
+      skip: (page - 1) * limit,
+      where: {
+        userId: userId,
+      },
+    });
+    return allNotes;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} note`;
+  async findOne(id: number, userId: number) {
+    const note = await this.prisma.note.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!note) {
+      throw new NotFoundException('Note not found');
+    }
+
+    if (note?.userId !== userId) {
+      throw new ForbiddenException(
+        'You are not authorized to access this note',
+      );
+    }
+
+    return note;
   }
 
-  update(id: number, updateNoteDto: UpdateNoteDto) {
-    return `This action updates a #${id} note`;
+  async update(id: number, updateNoteDto: UpdateNoteDto, userId: number) {
+    // check the note access first
+    await this.findOne(id, userId);
+
+    const updatedNote = await this.prisma.note.update({
+      where: { id },
+      data: {
+        ...updateNoteDto,
+      },
+    });
+
+    return updatedNote;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} note`;
+  async remove(id: number, userId: number) {
+    await this.findOne(id, userId);
+    const deletedNote = await this.prisma.note.delete({
+      where: { id },
+    });
+
+    if (!deletedNote) {
+      throw new NotFoundException('Note not found');
+    }
+
+    return {
+      message: 'Note deleted successfully',
+    };
   }
 }

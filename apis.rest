@@ -7,7 +7,7 @@ Content-Type: application/json
 
 {
   "name": "sssss",
-  "email": "user@gmail.com",
+  "email": "user1@gmail.com",
   "password": "Rakib@123"
 }
 
@@ -16,17 +16,53 @@ POST http://localhost:3000/api/login
 Content-Type: application/json
 
 {
-  "email": "user@gmail.com",
+  "email": "user1@gmail.com",
+  "password": "Rakib@123"
+}
+###
+POST http://localhost:3000/api/login
+Content-Type: application/json
+
+{
+  "email": "user1@gmail.com",
   "password": "Rakib@123"
 }
 
-###
+### create note  
 POST http://localhost:3000/api/notes  
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwLCJ1c2VybmFtZSI6InNzc3NzIiwiZW1haWwiOiJ1c2VyMUBnbWFpbC5jb20iLCJpYXQiOjE3ODY3MzAzNzIsImV4cCI6MTc4NjgxNjc3Mn0.us9tA1MXnJHjXBLR57_KbJHu_hJmovxtviZQacvfq-o
 
 {
-  "title": "My Note",
+  "title": "New Note Note",
   "content": "This is the content of my note.",
   "status": "active"
 }
+
+
+### update note  
+PATCH http://localhost:3000/api/notes/5
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwLCJ1c2VybmFtZSI6InNzc3NzIiwiZW1haWwiOiJ1c2VyMUBnbWFpbC5jb20iLCJpYXQiOjE3ODY3MzE2MzQsImV4cCI6MTc4NjgxODAzNH0.v3dbYDMriG__qXOdsMrrPAi_FPEgSGP12pF5Y-7ouRk
+
+{
+  "title": "Updated Title",
+  "content": "Update content of the note.",
+  "status": "active"
+}
+
+
+### get all notes
+GET http://localhost:3000/api/notes?limit=10&page=1
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
+
+
+### get one notes by id 
+GET http://localhost:3000/api/notes/4
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
+
+
+### delete notes by id 
+DELETE http://localhost:3000/api/notes/3
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
+

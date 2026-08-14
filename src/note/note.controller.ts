@@ -1,11 +1,14 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -29,25 +32,39 @@ export class NoteController {
 
   @UseGuards(AuthenticationGuard)
   @Get()
-  findAll() {
-    return this.noteService.findAll();
+  findAll(
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Request() req: { user: { sub: number; email: string } },
+  ) {
+    return this.noteService.findAll(limit, page, req.user?.sub);
   }
 
   @UseGuards(AuthenticationGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.noteService.findOne(+id);
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { sub: number; email: string } },
+  ) {
+    return this.noteService.findOne(id, req.user?.sub);
   }
 
   @UseGuards(AuthenticationGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateNoteDto: UpdateNoteDto) {
-    return this.noteService.update(+id, updateNoteDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateNoteDto: UpdateNoteDto,
+    @Request() req: { user: { sub: number; email: string } },
+  ) {
+    return this.noteService.update(id, updateNoteDto, req.user?.sub);
   }
 
   @UseGuards(AuthenticationGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.noteService.remove(+id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { sub: number; email: string } },
+  ) {
+    return this.noteService.remove(id, req.user?.sub);
   }
 }

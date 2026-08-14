@@ -9,5 +9,5 @@ export class CreateNoteDto {
   content: string;
 
   @IsNotEmpty()
-  status: string;
+  status: 'active' | 'inactive';
 }
