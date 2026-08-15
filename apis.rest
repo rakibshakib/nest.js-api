@@ -12,21 +12,14 @@ Content-Type: application/json
 }
 
 ###
-POST http://localhost:3000/api/login
+POST http://localhost:8000/api/login
 Content-Type: application/json
 
 {
   "email": "superadmin@gmail.com",
   "password": "12345678"
 }
-###
-POST http://localhost:3000/api/login
-Content-Type: application/json
 
-{
-  "email": "user1@gmail.com",
-  "password": "Rakib@123"
-}
 
 ### create note  
 POST http://localhost:3000/api/notes  
@@ -41,28 +34,15 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwLCJ1c2Vyb
 
 
 ### update note  
-PATCH http://localhost:3000/api/notes/5
+POST  http://localhost:8000/api/category
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwLCJ1c2VybmFtZSI6InNzc3NzIiwiZW1haWwiOiJ1c2VyMUBnbWFpbC5jb20iLCJpYXQiOjE3ODY3MzE2MzQsImV4cCI6MTc4NjgxODAzNH0.v3dbYDMriG__qXOdsMrrPAi_FPEgSGP12pF5Y-7ouRk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiQWRtaW4iLCJlbWFpbCI6InN1cGVyYWRtaW5AZ21haWwuY29tIiwiaWF0IjoxNzg2ODE5MDkxLCJleHAiOjE3ODY5MDU0OTF9.IY31HUjbOunuPqrQxCcfwNJz3BkhJqGj87tnBilNcZg
 
 {
-  "title": "Updated Title",
-  "content": "Update content of the note.",
-  "status": "active"
+  "name": "Education",
+  "description": "This is the description of Education category.",
+  "status": "ACTIVE"
 }
 
 
-### get all notes
-GET http://localhost:3000/api/notes?limit=10&page=1
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
-
-
-### get one notes by id 
-GET http://localhost:3000/api/notes/4
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
-
-
-### delete notes by id 
-DELETE http://localhost:3000/api/notes/3
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjksInVzZXJuYW1lIjoic3Nzc3MiLCJlbWFpbCI6InVzZXJAZ21haWwuY29tIiwiaWF0IjoxNzg2NzA1MDc3LCJleHAiOjE3ODY3OTE0Nzd9.yY12-dJVNR2B3A7jfmcwAcXHojZ4nVrNtZtDY4IBUO8
 
