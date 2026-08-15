@@ -16,8 +16,12 @@ generator client {
   output   = "../generated/prisma"
 }
 
+// datasource db {
+//   provider = "sqlite"
+// }
+
 datasource db {
-  provider = "sqlite"
+  provider = "mysql"
 }
 
 model User {

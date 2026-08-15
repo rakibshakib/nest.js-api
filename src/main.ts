@@ -1,15 +1,19 @@
-import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  // const app = await NestFactory.create(AppModule, {
+  //   logger: new ConsoleLogger({
+  //     json: true,
+  //     colors: true,
+  //   }),
+  // });
   const app = await NestFactory.create(AppModule, {
-    logger: new ConsoleLogger({
-      json: true,
-      colors: true,
-    }),
+    logger: false,
   });
+
   app.useGlobalPipes(new ValidationPipe());
 
   const config = new DocumentBuilder()
