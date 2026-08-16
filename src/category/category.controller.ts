@@ -15,7 +15,10 @@ import {
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import {
+  UpdateCategoryDto,
+  UpdateCategoryStatusDto,
+} from './dto/update-category.dto';
 
 @UseGuards(AuthenticationGuard)
 @Controller('api/category')
@@ -49,6 +52,14 @@ export class CategoryController {
     @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
     return this.categoryService.update(id, updateCategoryDto);
+  }
+
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCategoryStatusDto: UpdateCategoryStatusDto,
+  ) {
+    return this.categoryService.updateStatus(id, updateCategoryStatusDto);
   }
 
   @Delete(':id')

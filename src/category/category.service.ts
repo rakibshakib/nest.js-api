@@ -7,7 +7,10 @@ import {
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from 'src/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import {
+  UpdateCategoryDto,
+  UpdateCategoryStatusDto,
+} from './dto/update-category.dto';
 
 @Injectable()
 export class CategoryService {
@@ -96,6 +99,38 @@ export class CategoryService {
       }
 
       throw new InternalServerErrorException('Failed to update category');
+    }
+  }
+
+  async updateStatus(
+    id: number,
+    updateCategoryStatusDto: UpdateCategoryStatusDto,
+  ) {
+    try {
+      const updatedCategory = await this.prisma.category.update({
+        where: {
+          id,
+        },
+        data: {
+          isActive: updateCategoryStatusDto.isActive,
+        },
+      });
+
+      return {
+        message: 'Category status updated successfully',
+        content: updatedCategory,
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Category not found');
+      }
+
+      throw new InternalServerErrorException(
+        'Failed to update category status',
+      );
     }
   }
 
