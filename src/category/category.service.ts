@@ -14,7 +14,7 @@ import {
 
 @Injectable()
 export class CategoryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     createCategoryDto: CreateCategoryDto,
@@ -47,14 +47,32 @@ export class CategoryService {
   }
 
   async findAll(limit: number, page: number) {
-    const allCategories = await this.prisma.category.findMany({
-      orderBy: {
-        createdAt: 'desc',
+    const skip = (page - 1) * limit;
+
+    // transaction for 2 queries to ensure consistency
+    const [categories, total] = await this.prisma.$transaction([
+      this.prisma.category.findMany({
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit,
+        skip,
+      }),
+
+      this.prisma.category.count(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: categories,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
       },
-      take: limit,
-      skip: (page - 1) * limit,
-    });
-    return allCategories;
+    };
   }
 
   async findOne(id: number) {
