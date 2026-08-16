@@ -22,11 +22,6 @@ enum AdminRole {
   MANAGER
 }
 
-enum CategoryStatus {
-  ACTIVE
-  INACTIVE
-}
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -90,10 +85,10 @@ model Customer {
 }
 
 model Category {
-  id          Int            @id @default(autoincrement())
-  name        String
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
   description String?
-  status      CategoryStatus @default(ACTIVE)
+  isActive    Boolean @default(true)
 
   createdById Int
   createdBy   User @relation(fields: [createdById], references: [id])

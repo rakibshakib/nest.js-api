@@ -1,9 +1,4 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
-
-enum CategoryStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE',
-}
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
 export class CreateCategoryDto {
   @IsString()
@@ -13,7 +8,7 @@ export class CreateCategoryDto {
   @IsOptional()
   description?: string;
 
-  @IsEnum(CategoryStatus)
   @IsOptional()
-  status?: CategoryStatus = CategoryStatus.ACTIVE;
+  @IsBoolean()
+  isActive?: boolean;
 }

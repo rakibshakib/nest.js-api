@@ -1,4 +1,9 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from 'src/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
@@ -16,7 +21,7 @@ export class CategoryService {
         data: {
           name: createCategoryDto.name,
           description: createCategoryDto.description,
-          status: createCategoryDto.status,
+          isActive: createCategoryDto.isActive ?? true,
           createdById: user.sub,
         },
       });
@@ -25,13 +30,27 @@ export class CategoryService {
         message: 'Category created successfully',
         content: category,
       };
-    } catch (e) {
+    } catch (error: unknown) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Category name already exists');
+      }
+
       throw new InternalServerErrorException('Failed to create category');
     }
   }
 
   async findAll(limit: number, page: number) {
-    return `This action returns all category`;
+    const allCategories = await this.prisma.category.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+      skip: (page - 1) * limit,
+    });
+    return allCategories;
   }
 
   findOne(id: number) {

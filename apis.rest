@@ -1,7 +1,5 @@
-GET http://localhost:3000/
 
-
-###
+### register
 POST http://localhost:3000/api/register
 Content-Type: application/json
 
@@ -11,7 +9,7 @@ Content-Type: application/json
   "password": "Rakib@123"
 }
 
-###
+### login
 POST http://localhost:8000/api/login
 Content-Type: application/json
 
@@ -21,28 +19,23 @@ Content-Type: application/json
 }
 
 
-### create note  
-POST http://localhost:3000/api/notes  
-Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEwLCJ1c2VybmFtZSI6InNzc3NzIiwiZW1haWwiOiJ1c2VyMUBnbWFpbC5jb20iLCJpYXQiOjE3ODY3MzAzNzIsImV4cCI6MTc4NjgxNjc3Mn0.us9tA1MXnJHjXBLR57_KbJHu_hJmovxtviZQacvfq-o
-
-{
-  "title": "New Note Note",
-  "content": "This is the content of my note.",
-  "status": "active"
-}
 
 
-### update note  
+### create category  
 POST  http://localhost:8000/api/category
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiQWRtaW4iLCJlbWFpbCI6InN1cGVyYWRtaW5AZ21haWwuY29tIiwiaWF0IjoxNzg2ODE5MDkxLCJleHAiOjE3ODY5MDU0OTF9.IY31HUjbOunuPqrQxCcfwNJz3BkhJqGj87tnBilNcZg
 
 {
-  "name": "Education",
-  "description": "This is the description of Education category.",
-  "status": "ACTIVE"
+  "name": "Cleaning 2",
+  "description": "This is the description of Cleaning plumbing.",
+  "isActive": false
 }
+### get all category  
+GET  http://localhost:8000/api/category
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInVzZXJuYW1lIjoiQWRtaW4iLCJlbWFpbCI6InN1cGVyYWRtaW5AZ21haWwuY29tIiwiaWF0IjoxNzg2ODE5MDkxLCJleHAiOjE3ODY5MDU0OTF9.IY31HUjbOunuPqrQxCcfwNJz3BkhJqGj87tnBilNcZg
+
 
 
 
