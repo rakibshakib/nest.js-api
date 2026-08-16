@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { PrismaService } from 'src/prisma.service';
@@ -53,15 +54,72 @@ export class CategoryService {
     return allCategories;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} category`;
+  async findOne(id: number) {
+    const category = await this.prisma.category.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+    return category;
   }
 
-  update(id: number, updateCategoryDto: UpdateCategoryDto) {
-    return `This action updates a #${id} category`;
+  async update(id: number, updateCategoryDto: UpdateCategoryDto) {
+    try {
+      const updatedCategory = await this.prisma.category.update({
+        where: {
+          id,
+        },
+        data: updateCategoryDto,
+      });
+
+      return {
+        message: 'Category updated successfully',
+        content: updatedCategory,
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Category not found');
+      }
+
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Category name already exists');
+      }
+
+      throw new InternalServerErrorException('Failed to update category');
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} category`;
+  async remove(id: number) {
+    try {
+      const deletedCategory = await this.prisma.category.delete({
+        where: {
+          id,
+        },
+      });
+
+      return {
+        message: 'Category deleted successfully',
+        content: deletedCategory,
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Category not found');
+      }
+
+      throw new InternalServerErrorException('Failed to delete category');
+    }
   }
 }
