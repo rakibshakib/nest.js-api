@@ -22,6 +22,12 @@ enum AdminRole {
   MANAGER
 }
 
+enum VendorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -66,6 +72,9 @@ model Vendor {
 
   businessName String
   address      String?
+
+  status   VendorStatus @default(PENDING)
+  isActive Boolean      @default(false)
 
   user User @relation(fields: [userId], references: [id])
 

@@ -1,4 +1,6 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from 'generated/prisma/client';
+import { UserType } from 'generated/prisma/enums';
 import { RegisterDto } from 'src/auth/dto/register.dto';
 import { PrismaService } from 'src/prisma.service';
 
@@ -24,15 +26,22 @@ export class UserService {
   }
 
   // create user
-  async createUser(request: RegisterDto) {
+  async createUser(
+    request: RegisterDto,
+    userType: UserType = UserType.CUSTOMER,
+    tx?: Prisma.TransactionClient,
+  ) {
     const { email, password, name } = request;
-    const user = await this.prisma.user.create({
+
+    const prisma = tx ?? this.prisma;
+
+    return prisma.user.create({
       data: {
         name,
         email,
         password,
+        userType,
       },
     });
-    return user;
   }
 }
