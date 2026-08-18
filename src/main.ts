@@ -23,7 +23,12 @@ async function bootstrap() {
     .addTag('services')
     .addBearerAuth()
     .build();
-  const documentFactory = () => SwaggerModule.createDocument(app, config);
+  // const documentFactory = () => SwaggerModule.createDocument(app, config);
+  const documentFactory = () =>
+    SwaggerModule.createDocument(app, config, {
+      operationIdFactory: (controllerKey: string, methodKey: string) =>
+        methodKey,
+    });
   SwaggerModule.setup('api', app, documentFactory);
 
   await app.listen(8000);

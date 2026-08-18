@@ -12,6 +12,7 @@ import {
   Request,
   UseGuards,
 } from '@nestjs/common';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -20,6 +21,7 @@ import {
   UpdateCategoryStatusDto,
 } from './dto/update-category.dto';
 
+@ApiBearerAuth()
 @UseGuards(AuthenticationGuard)
 @Controller('api/category')
 export class CategoryController {
