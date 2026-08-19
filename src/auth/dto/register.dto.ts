@@ -13,6 +13,10 @@ export class RegisterDto {
   @IsEmail()
   email: string;
 
+  @IsNotEmpty()
+  @IsString()
+  phone: string;
+
   @IsStrongPassword()
   password: string;
 }

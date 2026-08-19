@@ -4,7 +4,6 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
 import { UserType, VendorStatus } from 'generated/prisma/enums';
@@ -21,7 +20,6 @@ import {
 export class VendorService {
   constructor(
     private readonly userService: UserService,
-    private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -42,6 +40,7 @@ export class VendorService {
           name: createVendorDto.name,
           email: createVendorDto.email,
           password: hashedPassword,
+          phone: createVendorDto.phone,
         },
         UserType.VENDOR,
         tx,

@@ -17,6 +17,9 @@ export class CreateVendorDto {
   @IsString()
   address: string;
 
+  @IsString()
+  phone: string;
+
   @IsEmail()
   email: string;
 

@@ -31,7 +31,7 @@ export class UserService {
     userType: UserType = UserType.CUSTOMER,
     tx?: Prisma.TransactionClient,
   ) {
-    const { email, password, name } = request;
+    const { email, password, name, phone } = request;
 
     const prisma = tx ?? this.prisma;
 
@@ -41,6 +41,14 @@ export class UserService {
         email,
         password,
         userType,
+        phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        userType: true,
       },
     });
   }
