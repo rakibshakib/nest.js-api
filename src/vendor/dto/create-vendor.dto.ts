@@ -5,27 +5,24 @@ import {
   IsStrongPassword,
 } from 'class-validator';
 
-export class RegisterDto {
+export class CreateVendorDto {
   @IsNotEmpty()
   @IsString()
   name: string;
 
-  @IsEmail()
-  email: string;
-
   @IsNotEmpty()
+  @IsString()
+  businessName: string;
+
+  @IsString()
+  address: string;
+
   @IsString()
   phone: string;
 
-  @IsStrongPassword()
-  password: string;
-}
-
-export class LoginDto {
   @IsEmail()
   email: string;
 
-  @IsNotEmpty()
-  @IsString()
+  @IsStrongPassword()
   password: string;
 }

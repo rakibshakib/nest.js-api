@@ -11,27 +11,106 @@
 // 2. run command to generate prisma client
 // npx prisma generate
 
+enum UserType {
+  ADMIN
+  VENDOR
+  CUSTOMER
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  MANAGER
+}
+
+enum VendorStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FLAT
+}
+
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
 }
-
-// datasource db {
-//   provider = "sqlite"
-// }
 
 datasource db {
   provider = "mysql"
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  name      String
-  password  String
-  updatedAt DateTime @updatedAt
+  id       Int      @id @default(autoincrement())
+  name     String
+  email    String   @unique
+  phone    String?
+  password String
+  userType UserType @default(CUSTOMER)
+
+  admin    Admin?
+  vendor   Vendor?
+  customer Customer?
+
+  createdCategories Category[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  notes     Note[]
+  services  Service[]
+}
+
+model Admin {
+  userId Int @id
+
+  role AdminRole @default(MANAGER)
+
+  user User @relation(fields: [userId], references: [id])
+
   createdAt DateTime @default(now())
-  Note      Note[]
+  updatedAt DateTime @updatedAt
+}
+
+model Vendor {
+  userId Int @id
+
+  businessName String
+  address      String?
+
+  status   VendorStatus @default(PENDING)
+  isActive Boolean      @default(false)
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  userId Int @id
+
+  address String?
+
+  user User @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true)
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  services  Service[]
 }
 
 model Note {
@@ -43,4 +122,44 @@ model Note {
   userId    Int
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+}
+
+model Service {
+  id               Int     @id @default(autoincrement())
+  name             String
+  shortDescription String?
+  description      String? @db.Text
+
+  basePrice Decimal @db.Decimal(10, 2)
+
+  discountAmount Decimal      @default(0) @db.Decimal(10, 2)
+  discountType   DiscountType @default(FLAT)
+
+  rating       Decimal @default(0) @db.Decimal(3, 2)
+  totalReviews Int     @default(0)
+
+  isActive Boolean @default(true)
+
+  categoryId Int
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  createdById Int
+  createdBy   User @relation(fields: [createdById], references: [id])
+
+  variations ServiceVariation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ServiceVariation {
+  id    Int     @id @default(autoincrement())
+  name  String
+  price Decimal @db.Decimal(10, 2)
+
+  serviceId Int
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
