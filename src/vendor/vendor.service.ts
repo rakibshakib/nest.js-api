@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -95,12 +97,114 @@ export class VendorService {
     }));
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} vendor`;
+  async findOne(id: number) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: { userId: id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const { user, ...rest } = vendor;
+    return {
+      ...rest,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+    };
   }
 
-  update(id: number, updateVendorDto: UpdateVendorDto) {
-    return `This action updates a #${id} vendor`;
+  async update(
+    id: number,
+    dto: UpdateVendorDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    if (!dto || Object.keys(dto).length === 0) {
+      throw new BadRequestException('At least one field is required to update');
+    }
+
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
+
+    const { name, businessName, address, phone, password, confirmPassword } =
+      dto || {};
+
+    // Password validation
+    if ((password && !confirmPassword) || (!password && confirmPassword)) {
+      throw new BadRequestException(
+        'Password and confirm password are both required',
+      );
+    }
+
+    if (password && password !== confirmPassword) {
+      throw new BadRequestException(
+        'Password and confirm password do not match',
+      );
+    }
+
+    const userData: {
+      name?: string;
+      phone?: string;
+      password?: string;
+    } = {};
+
+    const vendorData: {
+      businessName?: string;
+      address?: string;
+    } = {};
+
+    if (name) userData.name = name;
+    if (phone) userData.phone = phone;
+
+    if (businessName) vendorData.businessName = businessName;
+    if (address) vendorData.address = address;
+
+    if (password) {
+      userData.password = await bcrypt.hash(password, 10);
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (Object.keys(userData).length) {
+          await this.userService.updateUser(id, userData, tx);
+        }
+
+        if (Object.keys(vendorData).length) {
+          await tx.vendor.update({
+            where: { userId: id },
+            data: vendorData,
+          });
+        }
+      });
+
+      return {
+        message: 'Vendor updated successfully',
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Vendor not found');
+      }
+
+      throw new InternalServerErrorException('Failed to update vendor');
+    }
   }
 
   async remove(id: number) {

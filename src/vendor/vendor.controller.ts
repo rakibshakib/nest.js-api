@@ -7,9 +7,11 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
+import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
 import { CreateVendorDto } from './dto/create-vendor.dto';
@@ -36,20 +38,26 @@ export class VendorController {
     return this.vendorService.findAll();
   }
 
-  @UseGuards(AuthenticationGuard, AdminGuard)
+  @UseGuards(AuthenticationGuard)
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.vendorService.findOne(+id);
   }
 
+  @UseGuards(AuthenticationGuard)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateVendorDto: UpdateVendorDto) {
-    return this.vendorService.update(+id, updateVendorDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateVendorDto: UpdateVendorDto,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.vendorService.update(id, updateVendorDto, req.user);
   }
 
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
+    console.log('delete id', id);
     return this.vendorService.remove(id);
   }
 

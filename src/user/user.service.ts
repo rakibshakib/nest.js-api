@@ -52,4 +52,28 @@ export class UserService {
       },
     });
   }
+
+  async updateUser(
+    id: number,
+    data: {
+      name?: string;
+      phone?: string;
+      password?: string;
+    },
+    tx?: Prisma.TransactionClient,
+  ) {
+    const prisma = tx ?? this.prisma;
+
+    return prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        userType: true,
+      },
+    });
+  }
 }
