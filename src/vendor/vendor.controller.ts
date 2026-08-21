@@ -40,8 +40,8 @@ export class VendorController {
 
   @UseGuards(AuthenticationGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.vendorService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.vendorService.findOne(id);
   }
 
   @UseGuards(AuthenticationGuard)
