@@ -84,8 +84,9 @@ model Vendor {
 
   user User @relation(fields: [userId], references: [id])
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  vendorCategories VendorCategory[]
 }
 
 model Customer {
@@ -108,9 +109,22 @@ model Category {
   createdById Int
   createdBy   User @relation(fields: [createdById], references: [id])
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  services  Service[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  services         Service[]
+  vendorCategories VendorCategory[]
+}
+
+model VendorCategory {
+  vendorId   Int
+  categoryId Int
+
+  vendor   Vendor   @relation(fields: [vendorId], references: [userId], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@id([vendorId, categoryId])
 }
 
 model Note {

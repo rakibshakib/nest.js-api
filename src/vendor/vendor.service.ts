@@ -48,7 +48,7 @@ export class VendorService {
         tx,
       );
 
-      await tx.vendor.create({
+      const vendor = await tx.vendor.create({
         data: {
           userId: user.id,
           businessName: createVendorDto.businessName,
@@ -56,6 +56,13 @@ export class VendorService {
           status: VendorStatus.PENDING,
           isActive: false,
         },
+      });
+
+      await tx.vendorCategory.createMany({
+        data: createVendorDto.categoryIds.map((categoryId) => ({
+          vendorId: vendor.userId,
+          categoryId,
+        })),
       });
     });
 
@@ -107,6 +114,11 @@ export class VendorService {
             name: true,
             email: true,
             phone: true,
+          },
+        },
+        vendorCategories: {
+          include: {
+            category: true,
           },
         },
       },
