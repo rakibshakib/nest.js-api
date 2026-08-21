@@ -1,11 +1,13 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
+import { UserType, VendorStatus } from 'generated/prisma/enums';
 import { UserService } from 'src/user/user.service';
 import { RegisterDto } from './dto/register.dto';
 
@@ -67,7 +69,7 @@ export class AuthService {
 
   // login user
   async login(email: string, password: string) {
-    const user = await this.userService.getUserByEmail(email);
+    const user = await this.userService.getUserForLogin(email);
 
     if (!user) {
       throw new UnauthorizedException('Email or Password did not matched');
@@ -76,7 +78,22 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new ConflictException('Invalid password');
+      throw new UnauthorizedException('Email or Password did not matched');
+    }
+
+    // Vendor-specific validation
+    if (user.userType === UserType.VENDOR) {
+      if (!user.vendor) {
+        throw new UnauthorizedException('Vendor profile not found');
+      }
+
+      if (user.vendor.status !== VendorStatus.APPROVED) {
+        throw new ForbiddenException('Vendor account is not approved yet');
+      }
+
+      if (!user.vendor.isActive) {
+        throw new ForbiddenException('Vendor account is inactive');
+      }
     }
 
     const payload = {
@@ -85,20 +102,49 @@ export class AuthService {
       email: user.email,
       userType: user.userType,
     };
+
     const access_token = await this.jwtService.signAsync(payload);
 
     this.logger.log('User logged in successfully', {
       userId: user.id,
       email: user.email,
+      userType: user.userType,
     });
+
+    const userResponse = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      userType: user.userType,
+
+      ...(user.vendor && {
+        vendor: {
+          userId: user.vendor.userId,
+          businessName: user.vendor.businessName,
+          address: user.vendor.address,
+          status: user.vendor.status,
+          isActive: user.vendor.isActive,
+        },
+      }),
+
+      ...(user.admin && {
+        admin: {
+          userId: user.admin.userId,
+          role: user.admin.role,
+        },
+      }),
+
+      ...(user.customer && {
+        customer: {
+          userId: user.customer.userId,
+        },
+      }),
+    };
 
     return {
       message: 'User logged in successfully',
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
+      user: userResponse,
       access_token,
     };
   }

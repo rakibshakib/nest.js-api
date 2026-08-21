@@ -8,7 +8,11 @@ export class AuthController {
 
   @Post('register')
   register(@Body() request: RegisterDto) {
-    return this.authService.register(request);
+    // return this.authService.register(request);
+    return {
+      message:
+        'Manual registration is disabled, please use the login endpoint instead.',
+    };
   }
 
   @Post('login')

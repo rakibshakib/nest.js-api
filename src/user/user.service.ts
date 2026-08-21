@@ -14,6 +14,19 @@ export class UserService {
     return user;
   }
 
+  async getUserForLogin(email: string) {
+    return this.prisma.user.findUnique({
+      where: {
+        email,
+      },
+      include: {
+        vendor: true,
+        admin: true,
+        customer: true,
+      },
+    });
+  }
+
   async getUserInfoByEmail(email: string) {
     return this.prisma.user.findUnique({
       where: { email },
