@@ -57,7 +57,6 @@ export class VendorController {
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
-    console.log('delete id', id);
     return this.vendorService.remove(id);
   }
 
