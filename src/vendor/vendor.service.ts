@@ -11,7 +11,10 @@ import bcrypt from 'bcrypt';
 import { UserType, VendorStatus } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
-import { CreateVendorDto } from './dto/create-vendor.dto';
+import {
+  CreateVendorCategoryDto,
+  CreateVendorDto,
+} from './dto/create-vendor.dto';
 import {
   UpdateVendorApprovalDto,
   UpdateVendorDto,
@@ -306,5 +309,61 @@ export class VendorService {
 
       throw new InternalServerErrorException('Failed to update vendor status');
     }
+  }
+
+  async updateVendorCategory(
+    id: number,
+    dto: CreateVendorCategoryDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    if (user.sub !== id) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
+
+    const categoryIds = [...new Set(dto.categoryIds)];
+
+    if (!categoryIds.length) {
+      throw new BadRequestException('At least one category is required');
+    }
+
+    // Validate categories
+    const categories = await this.prisma.category.findMany({
+      where: {
+        id: {
+          in: categoryIds,
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (categories.length !== categoryIds.length) {
+      throw new BadRequestException(
+        'One or more categories are invalid or inactive',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Remove all existing categories
+      await tx.vendorCategory.deleteMany({
+        where: {
+          vendorId: id,
+        },
+      });
+
+      // Add selected categories
+      await tx.vendorCategory.createMany({
+        data: categoryIds.map((categoryId) => ({
+          vendorId: id,
+          categoryId,
+        })),
+      });
+    });
+
+    return {
+      message: 'Vendor categories updated successfully',
+    };
   }
 }

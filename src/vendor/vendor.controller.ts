@@ -14,7 +14,10 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
-import { CreateVendorDto } from './dto/create-vendor.dto';
+import {
+  CreateVendorCategoryDto,
+  CreateVendorDto,
+} from './dto/create-vendor.dto';
 import {
   UpdateVendorApprovalDto,
   UpdateVendorDto,
@@ -76,5 +79,15 @@ export class VendorController {
     @Body() dto: UpdateVendorApprovalDto,
   ) {
     return this.vendorService.approval(id, dto);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/updateCategory')
+  updateVendorCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() categories: CreateVendorCategoryDto,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.vendorService.updateVendorCategory(id, categories, req.user);
   }
 }
