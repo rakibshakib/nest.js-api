@@ -10,6 +10,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
 import { UserType, VendorStatus } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma.service';
+import { ServicesService } from 'src/services/services.service';
 import { UserService } from 'src/user/user.service';
 import {
   CreateVendorCategoryDto,
@@ -25,6 +26,7 @@ import {
 export class VendorService {
   constructor(
     private readonly userService: UserService,
+    private readonly serviceService: ServicesService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -65,6 +67,19 @@ export class VendorService {
         data: createVendorDto.categoryIds.map((categoryId) => ({
           vendorId: vendor.userId,
           categoryId,
+        })),
+      });
+
+      const services = await this.serviceService.findServiceIdsByCategoryIds(
+        createVendorDto.categoryIds,
+        tx,
+      );
+
+      await tx.vendorService.createMany({
+        data: services.map((service) => ({
+          vendorId: vendor.userId,
+          serviceId: service.id,
+          isActive: true,
         })),
       });
     });

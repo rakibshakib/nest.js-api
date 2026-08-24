@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+import { Prisma } from 'generated/prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import {
@@ -251,5 +252,24 @@ export class ServicesService {
         'Failed to update category status',
       );
     }
+  }
+
+  async findServiceIdsByCategoryIds(
+    categoryIds: number[],
+    tx?: Prisma.TransactionClient,
+  ) {
+    const prisma = tx ?? this.prisma;
+
+    return prisma.service.findMany({
+      where: {
+        categoryId: {
+          in: categoryIds,
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
   }
 }
