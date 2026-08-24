@@ -254,7 +254,6 @@ export class VendorService {
 
   // approve / reject vendor
   async approval(id: number, dto: UpdateVendorApprovalDto) {
-    console.log(dto);
     try {
       const vendor = await this.prisma.vendor.update({
         where: {
@@ -364,6 +363,38 @@ export class VendorService {
 
     return {
       message: 'Vendor categories updated successfully',
+    };
+  }
+
+  // find all categories wise all service for a vendor
+  async findAllProvidedServices(vendorId: number) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: {
+        userId: vendorId,
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const services = await this.prisma.vendorService.findMany({
+      where: {
+        vendorId,
+      },
+      include: {
+        service: {
+          include: {
+            variations: true,
+            category: true,
+          },
+        },
+      },
+    });
+
+    return {
+      message: 'Vendor services fetched successfully',
+      content: services,
     };
   }
 }

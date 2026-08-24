@@ -41,6 +41,12 @@ export class VendorController {
     return this.vendorService.findAll();
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
+  @Get(':id/services')
+  getAllProvidedServicesByVendor(@Param('id', ParseIntPipe) id: number) {
+    return this.vendorService.findAllProvidedServices(id);
+  }
+
   @UseGuards(AuthenticationGuard)
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
