@@ -1,11 +1,23 @@
 import {
+  ArrayNotEmpty,
+  IsArray,
   IsEmail,
+  IsInt,
   IsNotEmpty,
+  IsPositive,
   IsString,
   IsStrongPassword,
 } from 'class-validator';
 
-export class CreateVendorDto {
+export class CreateVendorCategoryDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsInt({ each: true })
+  @IsPositive({ each: true })
+  categoryIds: number[];
+}
+
+export class CreateVendorDto extends CreateVendorCategoryDto {
   @IsNotEmpty()
   @IsString()
   name: string;

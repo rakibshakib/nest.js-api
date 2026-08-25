@@ -1,12 +1,14 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -34,8 +36,11 @@ export class ServicesController {
   }
 
   @Get()
-  findAll() {
-    return this.servicesService.findAll();
+  findAll(
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+  ) {
+    return this.servicesService.findAll(limit, page);
   }
 
   @Get(':id')
@@ -61,6 +66,6 @@ export class ServicesController {
     @Param('id', ParseIntPipe) id: number,
     @Body() statusDto: UpdateServiceStatusDto,
   ) {
-    return '';
+    return this.servicesService.updateStatus(id, statusDto);
   }
 }

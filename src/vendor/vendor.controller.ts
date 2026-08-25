@@ -14,8 +14,12 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
-import { CreateVendorDto } from './dto/create-vendor.dto';
 import {
+  CreateVendorCategoryDto,
+  CreateVendorDto,
+} from './dto/create-vendor.dto';
+import {
+  ToggleVendorServiceDto,
   UpdateVendorApprovalDto,
   UpdateVendorDto,
   UpdateVendorStatusDto,
@@ -76,5 +80,32 @@ export class VendorController {
     @Body() dto: UpdateVendorApprovalDto,
   ) {
     return this.vendorService.approval(id, dto);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/updateCategory')
+  updateVendorCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() categories: CreateVendorCategoryDto,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.vendorService.updateVendorCategory(id, categories, req.user);
+  }
+
+  @UseGuards(AuthenticationGuard, AdminGuard)
+  @Get(':id/services')
+  getAllProvidedServicesByVendor(@Param('id', ParseIntPipe) id: number) {
+    return this.vendorService.findAllProvidedServices(id);
+  }
+
+  @UseGuards(AuthenticationGuard, AdminGuard)
+  @Patch(':id/services')
+  updateServiceStatusForVendor(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: ToggleVendorServiceDto,
+  ) {
+    console.log(dto, 'controller');
+
+    return this.vendorService.updateServiceStatusForVendor(id, dto);
   }
 }

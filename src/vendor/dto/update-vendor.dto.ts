@@ -1,4 +1,4 @@
-import { IsBoolean, IsEnum } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsInt } from 'class-validator';
 import { VendorStatus } from 'generated/prisma/enums';
 
 import {
@@ -44,4 +44,16 @@ export class UpdateVendorStatusDto {
 export class UpdateVendorApprovalDto {
   @IsEnum(VendorStatus)
   status: VendorStatus;
+}
+
+export class ToggleVendorServiceDto {
+  @IsArray()
+  @IsInt({ each: true })
+  @IsOptional()
+  activeServicesId?: number[];
+
+  @IsArray()
+  @IsInt({ each: true })
+  @IsOptional()
+  inActiveServicesId?: number[];
 }

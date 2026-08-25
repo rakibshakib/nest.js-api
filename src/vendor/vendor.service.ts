@@ -10,9 +10,14 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
 import { UserType, VendorStatus } from 'generated/prisma/enums';
 import { PrismaService } from 'src/prisma.service';
+import { ServicesService } from 'src/services/services.service';
 import { UserService } from 'src/user/user.service';
-import { CreateVendorDto } from './dto/create-vendor.dto';
 import {
+  CreateVendorCategoryDto,
+  CreateVendorDto,
+} from './dto/create-vendor.dto';
+import {
+  ToggleVendorServiceDto,
   UpdateVendorApprovalDto,
   UpdateVendorDto,
   UpdateVendorStatusDto,
@@ -22,6 +27,7 @@ import {
 export class VendorService {
   constructor(
     private readonly userService: UserService,
+    private readonly serviceService: ServicesService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -48,7 +54,7 @@ export class VendorService {
         tx,
       );
 
-      await tx.vendor.create({
+      const vendor = await tx.vendor.create({
         data: {
           userId: user.id,
           businessName: createVendorDto.businessName,
@@ -56,6 +62,26 @@ export class VendorService {
           status: VendorStatus.PENDING,
           isActive: false,
         },
+      });
+
+      await tx.vendorCategory.createMany({
+        data: createVendorDto.categoryIds.map((categoryId) => ({
+          vendorId: vendor.userId,
+          categoryId,
+        })),
+      });
+
+      const services = await this.serviceService.findServiceIdsByCategoryIds(
+        createVendorDto.categoryIds,
+        tx,
+      );
+
+      await tx.vendorService.createMany({
+        data: services.map((service) => ({
+          vendorId: vendor.userId,
+          serviceId: service.id,
+          isActive: true,
+        })),
       });
     });
 
@@ -107,6 +133,11 @@ export class VendorService {
             name: true,
             email: true,
             phone: true,
+          },
+        },
+        vendorCategories: {
+          include: {
+            category: true,
           },
         },
       },
@@ -239,7 +270,6 @@ export class VendorService {
 
   // approve / reject vendor
   async approval(id: number, dto: UpdateVendorApprovalDto) {
-    console.log(dto);
     try {
       const vendor = await this.prisma.vendor.update({
         where: {
@@ -293,6 +323,201 @@ export class VendorService {
       }
 
       throw new InternalServerErrorException('Failed to update vendor status');
+    }
+  }
+
+  async updateVendorCategory(
+    id: number,
+    dto: CreateVendorCategoryDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    if (user.sub !== id) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
+
+    const categoryIds = [...new Set(dto.categoryIds)];
+
+    if (!categoryIds.length) {
+      throw new BadRequestException('At least one category is required');
+    }
+
+    // Validate categories
+    const categories = await this.prisma.category.findMany({
+      where: {
+        id: {
+          in: categoryIds,
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (categories.length !== categoryIds.length) {
+      throw new BadRequestException(
+        'One or more categories are invalid or inactive',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Remove all existing categories
+      await tx.vendorCategory.deleteMany({
+        where: {
+          vendorId: id,
+        },
+      });
+
+      // Add selected categories
+      await tx.vendorCategory.createMany({
+        data: categoryIds.map((categoryId) => ({
+          vendorId: id,
+          categoryId,
+        })),
+      });
+    });
+
+    return {
+      message: 'Vendor categories updated successfully',
+    };
+  }
+
+  // find all categories wise all service for a vendor
+  async findAllProvidedServices(vendorId: number) {
+    const vendor = await this.prisma.vendor.findUnique({
+      where: {
+        userId: vendorId,
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const services = await this.prisma.vendorService.findMany({
+      where: {
+        vendorId,
+        service: {
+          isActive: true,
+        },
+      },
+      select: {
+        service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        isActive: true,
+      },
+    });
+
+    type Service = (typeof services)[number]['service'];
+    type Category = Service['category'];
+
+    type GroupedService = {
+      category: Category;
+      services: (Omit<Service, 'category'> & {
+        isActive: boolean;
+      })[];
+    };
+
+    const groupedServices = Object.values(
+      services.reduce<Record<number, GroupedService>>((acc, vendorService) => {
+        const { category, ...service } = vendorService.service;
+
+        if (!acc[category.id]) {
+          acc[category.id] = {
+            category,
+            services: [],
+          };
+        }
+
+        acc[category.id].services.push({
+          ...service,
+          isActive: vendorService?.isActive ?? false,
+        });
+
+        return acc;
+      }, {}),
+    );
+
+    return {
+      message: 'Vendor services fetched successfully',
+      content: groupedServices,
+    };
+  }
+
+  async updateServiceStatusForVendor(
+    vendorId: number,
+    dto: ToggleVendorServiceDto,
+  ) {
+    if (!dto) {
+      throw new BadRequestException('service list is required');
+    }
+    console.log({ dto });
+    const activeServiceIds = dto.activeServicesId ?? [];
+    const inactiveServiceIds = dto.inActiveServicesId ?? [];
+
+    if (activeServiceIds.length === 0 && inactiveServiceIds.length === 0) {
+      throw new BadRequestException('At least one service must be provided');
+    }
+
+    // validation for both array
+    const overlappingIds = activeServiceIds.filter((id) =>
+      inactiveServiceIds.includes(id),
+    );
+
+    if (overlappingIds.length > 0) {
+      throw new BadRequestException(
+        'A service cannot be both active and inactive',
+      );
+    }
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (activeServiceIds.length > 0) {
+          await tx.vendorService.updateMany({
+            where: {
+              vendorId,
+              serviceId: {
+                in: activeServiceIds,
+              },
+            },
+            data: {
+              isActive: true,
+            },
+          });
+        }
+
+        if (inactiveServiceIds.length > 0) {
+          await tx.vendorService.updateMany({
+            where: {
+              vendorId,
+              serviceId: {
+                in: inactiveServiceIds,
+              },
+            },
+            data: {
+              isActive: false,
+            },
+          });
+        }
+      });
+
+      return {
+        message: 'Vendor service status updated successfully',
+      };
+    } catch {
+      throw new InternalServerErrorException(
+        'Failed to update vendor service status',
+      );
     }
   }
 }
