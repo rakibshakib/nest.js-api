@@ -8,8 +8,6 @@ export class AdminGuard implements CanActivate {
       user: { userType: UserType };
     }>();
 
-    console.log('AdminGuard user:', request.user);
-
     return request.user.userType === UserType.ADMIN;
   }
 }

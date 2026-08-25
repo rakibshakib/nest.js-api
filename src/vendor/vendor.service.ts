@@ -396,20 +396,58 @@ export class VendorService {
     const services = await this.prisma.vendorService.findMany({
       where: {
         vendorId,
-      },
-      include: {
         service: {
-          include: {
-            variations: true,
-            category: true,
+          isActive: true,
+        },
+      },
+      select: {
+        service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
           },
         },
+        isActive: true,
       },
     });
 
+    type Service = (typeof services)[number]['service'];
+    type Category = Service['category'];
+
+    type GroupedService = {
+      category: Category;
+      services: Omit<Service, 'category'>[];
+      isActive: boolean;
+    };
+
+    const groupedServices = Object.values(
+      services.reduce<Record<number, GroupedService>>((acc, vendorService) => {
+        const { category, ...service } = vendorService.service;
+
+        if (!acc[category.id]) {
+          acc[category.id] = {
+            category,
+            services: [],
+            isActive: vendorService?.isActive ?? false,
+          };
+        }
+
+        acc[category.id].services.push(service);
+
+        return acc;
+      }, {}),
+    );
+
     return {
       message: 'Vendor services fetched successfully',
-      content: services,
+      content: groupedServices,
     };
   }
 }
