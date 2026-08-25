@@ -17,6 +17,7 @@ import {
   CreateVendorDto,
 } from './dto/create-vendor.dto';
 import {
+  ToggleVendorServiceDto,
   UpdateVendorApprovalDto,
   UpdateVendorDto,
   UpdateVendorStatusDto,
@@ -423,8 +424,9 @@ export class VendorService {
 
     type GroupedService = {
       category: Category;
-      services: Omit<Service, 'category'>[];
-      isActive: boolean;
+      services: (Omit<Service, 'category'> & {
+        isActive: boolean;
+      })[];
     };
 
     const groupedServices = Object.values(
@@ -435,11 +437,13 @@ export class VendorService {
           acc[category.id] = {
             category,
             services: [],
-            isActive: vendorService?.isActive ?? false,
           };
         }
 
-        acc[category.id].services.push(service);
+        acc[category.id].services.push({
+          ...service,
+          isActive: vendorService?.isActive ?? false,
+        });
 
         return acc;
       }, {}),
@@ -449,5 +453,71 @@ export class VendorService {
       message: 'Vendor services fetched successfully',
       content: groupedServices,
     };
+  }
+
+  async updateServiceStatusForVendor(
+    vendorId: number,
+    dto: ToggleVendorServiceDto,
+  ) {
+    if (!dto) {
+      throw new BadRequestException('service list is required');
+    }
+    console.log({ dto });
+    const activeServiceIds = dto.activeServicesId ?? [];
+    const inactiveServiceIds = dto.inActiveServicesId ?? [];
+
+    if (activeServiceIds.length === 0 && inactiveServiceIds.length === 0) {
+      throw new BadRequestException('At least one service must be provided');
+    }
+
+    // validation for both array
+    const overlappingIds = activeServiceIds.filter((id) =>
+      inactiveServiceIds.includes(id),
+    );
+
+    if (overlappingIds.length > 0) {
+      throw new BadRequestException(
+        'A service cannot be both active and inactive',
+      );
+    }
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (activeServiceIds.length > 0) {
+          await tx.vendorService.updateMany({
+            where: {
+              vendorId,
+              serviceId: {
+                in: activeServiceIds,
+              },
+            },
+            data: {
+              isActive: true,
+            },
+          });
+        }
+
+        if (inactiveServiceIds.length > 0) {
+          await tx.vendorService.updateMany({
+            where: {
+              vendorId,
+              serviceId: {
+                in: inactiveServiceIds,
+              },
+            },
+            data: {
+              isActive: false,
+            },
+          });
+        }
+      });
+
+      return {
+        message: 'Vendor service status updated successfully',
+      };
+    } catch {
+      throw new InternalServerErrorException(
+        'Failed to update vendor service status',
+      );
+    }
   }
 }
