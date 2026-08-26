@@ -52,6 +52,7 @@ export class CustomerService {
             data: {
               userId: user.id,
               address: createCustomerDto.address,
+              isActive: true,
             },
           });
 
@@ -97,8 +98,50 @@ export class CustomerService {
     }
   }
 
-  findAll() {
-    return `This action returns all customer`;
+  async findAll(limit: number, page: number) {
+    const skip = (page - 1) * limit;
+
+    const [customers, total] = await Promise.all([
+      this.prisma.customer.findMany({
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+      }),
+
+      this.prisma.customer.count(),
+    ]);
+
+    const formattedCustomer = customers?.map((cs) => {
+      const { user, ...rest } = cs;
+      return {
+        ...rest,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+      };
+    });
+
+    return {
+      data: formattedCustomer || [],
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   findOne(id: number) {

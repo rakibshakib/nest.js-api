@@ -1,15 +1,21 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
+  Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
+import { AuthenticationGuard } from 'src/auth/auth.guard';
+import { AdminGuard } from 'src/auth/authAdmin.guard';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -39,9 +45,13 @@ export class CustomerController {
     };
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Get()
-  findAll() {
-    return this.customerService.findAll();
+  findAll(
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+  ) {
+    return this.customerService.findAll(limit, page);
   }
 
   @Get(':id')
