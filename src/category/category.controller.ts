@@ -39,8 +39,9 @@ export class CategoryController {
   findAll(
     @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('all_services', new DefaultValuePipe(false)) all_services: boolean,
   ) {
-    return this.categoryService.findAll(limit, page);
+    return this.categoryService.findAll(limit, page, all_services);
   }
 
   @Get(':id')

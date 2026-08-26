@@ -269,6 +269,7 @@ export class ServicesService {
       },
       select: {
         id: true,
+        categoryId: true,
       },
     });
   }
