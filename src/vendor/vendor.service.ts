@@ -9,6 +9,7 @@ import {
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
 import { UserType, VendorStatus } from 'generated/prisma/enums';
+import { CategoryService } from 'src/category/category.service';
 import { PrismaService } from 'src/prisma.service';
 import { ServicesService } from 'src/services/services.service';
 import { UserService } from 'src/user/user.service';
@@ -28,6 +29,7 @@ export class VendorService {
   constructor(
     private readonly userService: UserService,
     private readonly serviceService: ServicesService,
+    private readonly categoryService: CategoryService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -337,22 +339,13 @@ export class VendorService {
 
     const categoryIds = [...new Set(dto.categoryIds)];
 
+    console.log({ categoryIds });
+
     if (!categoryIds.length) {
       throw new BadRequestException('At least one category is required');
     }
 
-    // Validate categories
-    const categories = await this.prisma.category.findMany({
-      where: {
-        id: {
-          in: categoryIds,
-        },
-        isActive: true,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const categories = await this.categoryService.filterCategories(categoryIds);
 
     if (categories.length !== categoryIds.length) {
       throw new BadRequestException(
@@ -361,20 +354,69 @@ export class VendorService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // Remove all existing categories
+      // Update vendor categories
       await tx.vendorCategory.deleteMany({
         where: {
           vendorId: id,
         },
       });
 
-      // Add selected categories
       await tx.vendorCategory.createMany({
         data: categoryIds.map((categoryId) => ({
           vendorId: id,
           categoryId,
         })),
       });
+
+      // Get services belonging to selected categories
+      const services = await this.serviceService.findServiceIdsByCategoryIds(
+        categoryIds,
+        tx,
+      );
+      console.log({ services });
+      const serviceIds = services.map((service) => service.id);
+
+      // Remove services that are no longer part of selected categories
+      await tx.vendorService.deleteMany({
+        where: {
+          vendorId: id,
+          serviceId: {
+            notIn: serviceIds,
+          },
+        },
+      });
+
+      // Get already assigned services
+      const existingServices = await tx.vendorService.findMany({
+        where: {
+          vendorId: id,
+          serviceId: {
+            in: serviceIds,
+          },
+        },
+        select: {
+          serviceId: true,
+        },
+      });
+
+      const existingServiceIds = new Set(
+        existingServices.map((service) => service.serviceId),
+      );
+
+      // Add only new services
+      const newServices = services.filter(
+        (service) => !existingServiceIds.has(service.id),
+      );
+
+      if (newServices.length) {
+        await tx.vendorService.createMany({
+          data: newServices.map((service) => ({
+            vendorId: id,
+            serviceId: service.id,
+            isActive: true,
+          })),
+        });
+      }
     });
 
     return {

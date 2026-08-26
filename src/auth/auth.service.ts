@@ -96,6 +96,19 @@ export class AuthService {
       }
     }
 
+    // customer-specific validation
+    if (user.userType === UserType.CUSTOMER) {
+      if (!user.customer) {
+        throw new UnauthorizedException('customer profile not found');
+      }
+
+      if (!user.customer.isActive) {
+        throw new ForbiddenException(
+          'Sorry, your account is inactive, please contact admin',
+        );
+      }
+    }
+
     const payload = {
       sub: user.id,
       username: user.name,
@@ -138,6 +151,7 @@ export class AuthService {
       ...(user.customer && {
         customer: {
           userId: user.customer.userId,
+          address: user.customer.address,
         },
       }),
     };

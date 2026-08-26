@@ -46,7 +46,7 @@ export class CategoryService {
     }
   }
 
-  async findAll(limit: number, page: number) {
+  async findAll(limit: number, page: number, all_services: boolean) {
     const skip = (page - 1) * limit;
 
     // transaction for 2 queries to ensure consistency
@@ -57,6 +57,9 @@ export class CategoryService {
         },
         take: limit,
         skip,
+        include: {
+          services: Boolean(all_services),
+        },
       }),
 
       this.prisma.category.count(),
@@ -75,10 +78,28 @@ export class CategoryService {
     };
   }
 
+  async filterCategories(categoryIds: number[]) {
+    const categories = await this.prisma.category.findMany({
+      where: {
+        id: {
+          in: categoryIds,
+        },
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+    return categories;
+  }
+
   async findOne(id: number) {
     const category = await this.prisma.category.findUnique({
       where: {
         id,
+      },
+      include: {
+        services: true,
       },
     });
 
