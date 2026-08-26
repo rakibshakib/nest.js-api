@@ -1,6 +1,7 @@
 import { ConsoleLogger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -10,6 +11,8 @@ async function bootstrap() {
       colors: true,
     }),
   });
+
+  app.use(cookieParser());
   // const app = await NestFactory.create(AppModule, {
   //   logger: false,
   // });

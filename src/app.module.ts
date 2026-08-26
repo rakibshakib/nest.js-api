@@ -8,6 +8,7 @@ import { NoteModule } from './note/note.module';
 import { UserModule } from './user/user.module';
 import { VendorModule } from './vendor/vendor.module';
 import { ServicesModule } from './services/services.module';
+import { CustomerModule } from './customer/customer.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ServicesModule } from './services/services.module';
     CategoryModule,
     VendorModule,
     ServicesModule,
+    CustomerModule,
   ],
   controllers: [AppController],
   providers: [AppService],
