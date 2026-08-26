@@ -9,13 +9,16 @@ import {
   Patch,
   Post,
   Query,
+  Request,
   Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
+import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
+import { CustomerGuard } from './customer.guard';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
@@ -54,11 +57,16 @@ export class CustomerController {
     return this.customerService.findAll(limit, page);
   }
 
+  @UseGuards(AuthenticationGuard)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.customerService.findOne(+id);
+  findOne(
+    @Param('id') id: string,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.customerService.findOne(+id, req.user);
   }
 
+  @UseGuards(AuthenticationGuard, CustomerGuard)
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -67,6 +75,7 @@ export class CustomerController {
     return this.customerService.update(+id, updateCustomerDto);
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard, CustomerGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.customerService.remove(+id);

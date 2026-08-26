@@ -1,8 +1,10 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
@@ -12,6 +14,7 @@ import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
+import { CustomerWithUser } from './types/customer.types';
 
 @Injectable()
 export class CustomerService {
@@ -123,15 +126,7 @@ export class CustomerService {
       this.prisma.customer.count(),
     ]);
 
-    const formattedCustomer = customers?.map((cs) => {
-      const { user, ...rest } = cs;
-      return {
-        ...rest,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-      };
-    });
+    const formattedCustomer = customers?.map((cs) => this.formatCustomer(cs));
 
     return {
       data: formattedCustomer || [],
@@ -144,8 +139,34 @@ export class CustomerService {
     };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} customer`;
+  async findOne(id: number, user: { sub: number; userType: UserType }) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to view this customer');
+    }
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId: id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+    return {
+      message: 'Customer found successfully',
+      content: this.formatCustomer(customer),
+    };
   }
 
   update(id: number, updateCustomerDto: UpdateCustomerDto) {
@@ -154,5 +175,16 @@ export class CustomerService {
 
   remove(id: number) {
     return `This action removes a #${id} customer`;
+  }
+
+  private formatCustomer(customer: CustomerWithUser) {
+    const { user, ...customerData } = customer;
+
+    return {
+      ...customerData,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+    };
   }
 }
