@@ -1,19 +1,22 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
 import { UserType } from 'generated/prisma/enums';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
-import { UpdateCustomerDto } from './dto/update-customer.dto';
+import {
+  UpdateCustomerDto,
+  updateCustomerStatusDto,
+} from './dto/update-customer.dto';
 import { CustomerWithUser } from './types/customer.types';
 
 @Injectable()
@@ -90,14 +93,10 @@ export class CustomerService {
         access_token,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Email already exists');
-      }
-
-      throw new InternalServerErrorException('Failed to register customer');
+      handlePrismaError(error, {
+        p2002: 'Email already exists',
+        default: 'Failed to register customer',
+      });
     }
   }
 
@@ -169,12 +168,136 @@ export class CustomerService {
     };
   }
 
-  update(id: number, updateCustomerDto: UpdateCustomerDto) {
-    return `This action updates a #${id} customer`;
+  async update(
+    id: number,
+    dto: UpdateCustomerDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    if (!dto || Object.keys(dto).length === 0) {
+      throw new BadRequestException('At least one field is required to update');
+    }
+
+    const isOwner = user.sub === id;
+
+    if (!isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to update this profile',
+      );
+    }
+
+    const { name, address, phone, password, confirmPassword } = dto || {};
+
+    // Password validation
+    if ((password && !confirmPassword) || (!password && confirmPassword)) {
+      throw new BadRequestException(
+        'Password and confirm password are both required',
+      );
+    }
+
+    if (password && password !== confirmPassword) {
+      throw new BadRequestException(
+        'Password and confirm password do not match',
+      );
+    }
+
+    const userData: {
+      name?: string;
+      phone?: string;
+      password?: string;
+    } = {};
+
+    const customerData: {
+      address?: string;
+    } = {};
+
+    if (name) userData.name = name;
+    if (phone) userData.phone = phone;
+
+    if (address) customerData.address = address;
+
+    if (password) {
+      userData.password = await bcrypt.hash(password, 10);
+    }
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (Object.keys(userData).length) {
+          await this.userService.updateUser(id, userData, tx);
+        }
+
+        if (Object.keys(customerData).length) {
+          await tx.customer.update({
+            where: { userId: id },
+            data: customerData,
+          });
+        }
+      });
+
+      return {
+        message: 'Customer updated successfully',
+      };
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        p2025: 'Customer not found',
+        default: 'Failed to update customer',
+      });
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} customer`;
+  async updateStatus(id: number, dto: updateCustomerStatusDto) {
+    try {
+      const customer = await this.prisma.customer.update({
+        where: {
+          userId: id,
+        },
+        data: {
+          isActive: dto.isActive,
+        },
+      });
+
+      return {
+        message: 'Customer status updated successfully',
+        content: customer,
+      };
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        p2025: 'Customer not found',
+        default: 'Failed to update customer',
+      });
+    }
+  }
+
+  async remove(id: number, user: { sub: number; userType: UserType }) {
+    console.log('deleted', id);
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to view this customer');
+    }
+    try {
+      const result = await this.prisma.$transaction(async (tx) => {
+        const customer = await tx.customer.delete({
+          where: { userId: id },
+        });
+
+        await tx.user.delete({
+          where: { id },
+        });
+
+        return customer;
+      });
+
+      return {
+        message: 'Customer deleted successfully',
+        content: result,
+      };
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        p2025: 'Customer not found',
+        default: 'Failed to delete customer',
+      });
+    }
   }
 
   private formatCustomer(customer: CustomerWithUser) {
