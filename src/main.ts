@@ -13,9 +13,6 @@ async function bootstrap() {
   });
 
   app.use(cookieParser());
-  // const app = await NestFactory.create(AppModule, {
-  //   logger: false,
-  // });
 
   app.useGlobalPipes(new ValidationPipe());
 
@@ -26,7 +23,7 @@ async function bootstrap() {
     .addTag('services')
     .addBearerAuth()
     .build();
-  // const documentFactory = () => SwaggerModule.createDocument(app, config);
+
   const documentFactory = () =>
     SwaggerModule.createDocument(app, config, {
       operationIdFactory: (controllerKey: string, methodKey: string) =>
