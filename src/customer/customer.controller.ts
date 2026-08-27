@@ -21,7 +21,10 @@ import { AdminGuard } from 'src/auth/authAdmin.guard';
 import { CustomerGuard } from './customer.guard';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
-import { UpdateCustomerDto } from './dto/update-customer.dto';
+import {
+  UpdateCustomerDto,
+  updateCustomerStatusDto,
+} from './dto/update-customer.dto';
 
 @ApiBearerAuth()
 @Controller('api/customer')
@@ -60,24 +63,38 @@ export class CustomerController {
   @UseGuards(AuthenticationGuard)
   @Get(':id')
   findOne(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Request() req: { user: { sub: number; userType: UserType } },
   ) {
-    return this.customerService.findOne(+id, req.user);
+    return this.customerService.findOne(id, req.user);
   }
 
   @UseGuards(AuthenticationGuard, CustomerGuard)
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id', ParseIntPipe) id: number,
     @Body() updateCustomerDto: UpdateCustomerDto,
+    @Request() req: { user: { sub: number; userType: UserType } },
   ) {
-    return this.customerService.update(+id, updateCustomerDto);
+    return this.customerService.update(id, updateCustomerDto, req.user);
   }
 
-  @UseGuards(AuthenticationGuard, AdminGuard, CustomerGuard)
+  @UseGuards(AuthenticationGuard)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.customerService.remove(+id);
+  remove(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.customerService.remove(id, req.user);
+  }
+
+  // toggle customer status to disabled or active
+  @UseGuards(AuthenticationGuard, AdminGuard)
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: updateCustomerStatusDto,
+  ) {
+    return this.customerService.updateStatus(id, dto);
   }
 }
