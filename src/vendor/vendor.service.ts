@@ -105,6 +105,10 @@ export class VendorService {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        rating: true,
+        responseTime: true,
+        logoUrl: true,
+        logoPath: true,
 
         user: {
           select: {
@@ -122,7 +126,6 @@ export class VendorService {
     return vendors.map(({ user, ...vendor }) => ({
       ...vendor,
       name: user.name,
-      email: user.email,
       phone: user.phone,
     }));
   }
@@ -603,7 +606,7 @@ export class VendorService {
 
     // Delete previous logo after new logo is successfully saved
     if (vendor.logoPath) {
-      await this.supabaseService.deleteFile(vendor.logoPath as string);
+      await this.supabaseService.deleteFile(vendor.logoPath);
     }
 
     return {
