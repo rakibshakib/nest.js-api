@@ -5,12 +5,23 @@ import { PrismaClient } from '../generated/prisma/client';
 @Injectable()
 export class PrismaService extends PrismaClient {
   constructor() {
-    console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
-    console.log(
-      'DATABASE_URL:',
-      process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':****@'),
-    );
-    const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
+    const databaseUrl = new URL(process.env.DATABASE_URL!);
+
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    const adapter = new PrismaMariaDb({
+      host: databaseUrl.hostname,
+      port: Number(databaseUrl.port),
+      user: decodeURIComponent(databaseUrl.username),
+      password: decodeURIComponent(databaseUrl.password),
+      database: databaseUrl.pathname.substring(1),
+
+      ...(isProduction && {
+        ssl: {
+          rejectUnauthorized: true,
+        },
+      }),
+    });
 
     super({ adapter });
   }
