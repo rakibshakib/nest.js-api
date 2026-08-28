@@ -29,7 +29,7 @@ async function bootstrap() {
       operationIdFactory: (controllerKey: string, methodKey: string) =>
         methodKey,
     });
-  SwaggerModule.setup('api', app, documentFactory);
+  // SwaggerModule.setup('api', app, documentFactory);
 
   await app.listen(8000);
 }
