@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `Vendor` ADD COLUMN `coverPath` VARCHAR(191) NULL,
+    ADD COLUMN `coverUrl` VARCHAR(191) NULL,
+    ADD COLUMN `logoPath` VARCHAR(191) NULL,
+    ADD COLUMN `logoUrl` VARCHAR(191) NULL;
