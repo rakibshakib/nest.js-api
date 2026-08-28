@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,8 +9,11 @@ import {
   Patch,
   Post,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
@@ -107,5 +111,31 @@ export class VendorController {
     console.log(dto, 'controller');
 
     return this.vendorService.updateServiceStatusForVendor(id, dto);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/logo')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 2 * 1024 * 1024, // 5 MB
+      },
+      fileFilter: (_req, file, callback) => {
+        if (!file.mimetype.startsWith('image/')) {
+          return callback(
+            new BadRequestException('Only image files are allowed'),
+            false,
+          );
+        }
+
+        callback(null, true);
+      },
+    }),
+  )
+  uploadLogo(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.vendorService.uploadLogo(id, file);
   }
 }

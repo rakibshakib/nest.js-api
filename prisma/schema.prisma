@@ -78,6 +78,11 @@ model Vendor {
 
   businessName String
   address      String?
+  logoUrl      String?
+  logoPath     String?
+
+  coverUrl  String?
+  coverPath String?
 
   status   VendorStatus @default(PENDING)
   isActive Boolean      @default(false)
