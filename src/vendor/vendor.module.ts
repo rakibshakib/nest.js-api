@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { jwtConstants } from 'src/auth/constant';
 import { CategoryModule } from 'src/category/category.module';
+import { SupabaseModule } from 'src/common/supabase/supabase.module';
 import { PrismaService } from 'src/prisma.service';
 import { ServicesModule } from 'src/services/services.module';
 import { UserModule } from 'src/user/user.module';
@@ -15,6 +16,7 @@ import { VendorService } from './vendor.service';
     UserModule,
     ServicesModule,
     CategoryModule,
+    SupabaseModule,
     JwtModule.register({
       global: true,
       secret: jwtConstants.secret,

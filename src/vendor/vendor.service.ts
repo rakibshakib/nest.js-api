@@ -10,6 +10,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
 import { UserType, VendorStatus } from 'generated/prisma/enums';
 import { CategoryService } from 'src/category/category.service';
+import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
 import { ServicesService } from 'src/services/services.service';
 import { UserService } from 'src/user/user.service';
@@ -31,6 +32,7 @@ export class VendorService {
     private readonly serviceService: ServicesService,
     private readonly categoryService: CategoryService,
     private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async registerVendor(createVendorDto: CreateVendorDto) {
@@ -561,5 +563,55 @@ export class VendorService {
         'Failed to update vendor service status',
       );
     }
+  }
+
+  async uploadLogo(id: number, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Logo image is required');
+    }
+
+    const vendor = await this.prisma.vendor.findUnique({
+      where: {
+        userId: id,
+      },
+      select: {
+        userId: true,
+        logoPath: true,
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    // upload file
+    const filePath = `vendors/${id}/logo-${Date.now()}`;
+
+    const uploadedFile = await this.supabaseService.uploadFile(file, filePath);
+
+    const publicUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+
+    await this.prisma.vendor.update({
+      where: {
+        userId: id,
+      },
+      data: {
+        logoUrl: publicUrl,
+        logoPath: uploadedFile.path,
+      },
+    });
+
+    // Delete previous logo after new logo is successfully saved
+    if (vendor.logoPath) {
+      await this.supabaseService.deleteFile(vendor.logoPath as string);
+    }
+
+    return {
+      message: 'Vendor logo uploaded successfully',
+      content: {
+        logoUrl: publicUrl,
+        logoPath: uploadedFile.path,
+      },
+    };
   }
 }
