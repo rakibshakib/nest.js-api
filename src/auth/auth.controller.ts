@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/register.dto';
 
-@Controller('api')
+@Controller('api/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
@@ -34,5 +34,11 @@ export class AuthController {
     });
 
     return rest;
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) response: Response) {
+    response.clearCookie('access_token');
+    return { message: 'Logout successful' };
   }
 }
