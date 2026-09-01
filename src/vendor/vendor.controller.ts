@@ -26,6 +26,7 @@ import {
   ToggleVendorServiceDto,
   UpdateVendorApprovalDto,
   UpdateVendorDto,
+  UpdateVendorOfferStatusDto,
   UpdateVendorStatusDto,
   VendorOfferDto,
 } from './dto/update-vendor.dto';
@@ -149,5 +150,25 @@ export class VendorController {
     @Request() req: { user: { sub: number; userType: UserType } },
   ) {
     return this.vendorService.updateVendorOffer(id, vendorOfferDto, req.user);
+  }
+  // delete vendor offer
+  @UseGuards(AuthenticationGuard)
+  @Delete(':id/vendor-offers')
+  deleteVendorOffer(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.vendorService.deleteVendorOffer(id, req.user);
+  }
+
+  // update status vendor offer
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/vendor-offers-status')
+  updateVendorOfferStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateVendorOfferStatusDto,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.vendorService.updateVendorOfferStatus(id, dto, req.user);
   }
 }

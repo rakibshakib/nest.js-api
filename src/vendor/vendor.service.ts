@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
-import { UserType, VendorStatus } from 'generated/prisma/enums';
+import { OfferType, UserType, VendorStatus } from 'generated/prisma/enums';
 import { CategoryService } from 'src/category/category.service';
 import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
@@ -22,6 +22,7 @@ import {
   ToggleVendorServiceDto,
   UpdateVendorApprovalDto,
   UpdateVendorDto,
+  UpdateVendorOfferStatusDto,
   UpdateVendorStatusDto,
   VendorOfferDto,
 } from './dto/update-vendor.dto';
@@ -118,6 +119,7 @@ export class VendorService {
             phone: true,
           },
         },
+        vendorOffer: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -148,6 +150,7 @@ export class VendorService {
             category: true,
           },
         },
+        vendorOffer: true,
       },
     });
 
@@ -621,19 +624,196 @@ export class VendorService {
 
   // update vendor offer
   async updateVendorOffer(
-    id: number,
+    vendorId: number,
     dto: VendorOfferDto,
     user: { sub: number; userType: UserType },
   ) {
     if (!dto || Object.keys(dto).length === 0) {
-      throw new BadRequestException('At least one field is required to update');
+      throw new BadRequestException('Offer data is required');
     }
 
     const isAdmin = user.userType === UserType.ADMIN;
-    const isOwner = user.sub === id;
+    const isOwner = user.sub === vendorId;
 
     if (!isAdmin && !isOwner) {
-      throw new ForbiddenException('You are not allowed to update this vendor');
+      throw new ForbiddenException(
+        'You are not allowed to manage this vendor offer',
+      );
+    }
+
+    // Required fields for creating an offer
+    if (!dto.type || !dto.startDate || dto.hasExpireDate === undefined) {
+      throw new BadRequestException(
+        'Type, start date and hasExpireDate are required',
+      );
+    }
+
+    const offerData = {
+      type: dto.type,
+      title: dto.type === OfferType.TEXT ? dto.title : '',
+      description: dto.description ?? null,
+      value: dto.type === OfferType.TEXT ? null : (dto.value ?? null),
+      startDate: new Date(dto.startDate),
+      hasExpireDate: dto.hasExpireDate,
+      endDate: dto.hasExpireDate
+        ? dto.endDate
+          ? new Date(dto.endDate)
+          : null
+        : null,
+      isActive: dto.isActive ?? true,
+    };
+
+    // Business validation
+    this.validateOfferData(offerData);
+
+    // Delete old offer and create new offer
+    const offer = await this.prisma.$transaction(async (tx) => {
+      await tx.vendorOffer.deleteMany({
+        where: {
+          vendorId,
+        },
+      });
+
+      return tx.vendorOffer.create({
+        data: {
+          vendorId,
+          ...offerData,
+        },
+      });
+    });
+
+    return {
+      message: 'Vendor offer updated successfully',
+      content: offer,
+    };
+  }
+
+  async deleteVendorOffer(
+    vendorId: number,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === vendorId;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to delete this vendor offer',
+      );
+    }
+
+    await this.prisma.vendorOffer.deleteMany({
+      where: {
+        vendorId,
+      },
+    });
+
+    return {
+      message: 'Vendor offer deleted successfully',
+    };
+  }
+
+  async updateVendorOfferStatus(
+    vendorId: number,
+    dto: UpdateVendorOfferStatusDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === vendorId;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to update this vendor offer status',
+      );
+    }
+    try {
+      const offer = await this.prisma.vendorOffer.update({
+        where: {
+          vendorId,
+        },
+        data: {
+          isActive: dto.isActive,
+        },
+      });
+
+      return {
+        message: 'Vendor offer status updated successfully',
+        content: offer,
+      };
+    } catch (error) {
+      if (
+        error instanceof PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Vendor offer not found');
+      }
+
+      throw error;
+    }
+  }
+
+  private validateOfferData(data: {
+    type: OfferType;
+    title?: string | null;
+    description?: string | null;
+    value?: number | null;
+    startDate: Date;
+    hasExpireDate: boolean;
+    endDate?: Date | null;
+    isActive: boolean;
+  }) {
+    // TEXT
+    if (data.type === OfferType.TEXT) {
+      if (!data.title?.trim()) {
+        throw new BadRequestException('Title is required for text offer');
+      }
+
+      if (data.value !== null && data.value !== undefined) {
+        throw new BadRequestException('Value is not allowed for text offer');
+      }
+    }
+
+    // PERCENTAGE
+    if (data.type === OfferType.PERCENTAGE) {
+      if (data.value === null || data.value === undefined) {
+        throw new BadRequestException('Value is required for percentage offer');
+      }
+
+      if (data.value <= 0 || data.value > 100) {
+        throw new BadRequestException(
+          'Percentage value must be between 1 and 100',
+        );
+      }
+    }
+
+    // FIXED AMOUNT
+    if (data.type === OfferType.FIXED_AMOUNT) {
+      if (data.value === null || data.value === undefined) {
+        throw new BadRequestException(
+          'Value is required for fixed amount offer',
+        );
+      }
+
+      if (data.value <= 0) {
+        throw new BadRequestException('Fixed amount must be greater than 0');
+      }
+    }
+
+    // EXPIRY
+    if (data.hasExpireDate && !data.endDate) {
+      throw new BadRequestException(
+        'End date is required when expiry date is enabled',
+      );
+    }
+
+    if (!data.hasExpireDate && data.endDate) {
+      throw new BadRequestException(
+        'End date should not be provided for a lifetime offer',
+      );
+    }
+
+    // DATE RANGE
+    if (data.hasExpireDate && data.endDate && data.endDate <= data.startDate) {
+      throw new BadRequestException('End date must be greater than start date');
     }
   }
 }
