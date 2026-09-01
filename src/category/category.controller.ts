@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
+import { AdminGuard } from 'src/auth/authAdmin.guard';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
@@ -22,11 +23,11 @@ import {
 } from './dto/update-category.dto';
 
 @ApiBearerAuth()
-@UseGuards(AuthenticationGuard)
 @Controller('api/category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Post()
   create(
     @Body() createCategoryDto: CreateCategoryDto,
@@ -49,6 +50,7 @@ export class CategoryController {
     return this.categoryService.findOne(id);
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -57,6 +59,7 @@ export class CategoryController {
     return this.categoryService.update(id, updateCategoryDto);
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Patch(':id/status')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -65,6 +68,7 @@ export class CategoryController {
     return this.categoryService.updateStatus(id, updateCategoryStatusDto);
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.remove(id);
