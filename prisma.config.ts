@@ -3,6 +3,8 @@
 import 'dotenv/config';
 import { defineConfig } from 'prisma/config';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export default defineConfig({
   schema: 'prisma/schema.prisma',
   migrations: {
@@ -10,6 +12,8 @@ export default defineConfig({
     seed: 'tsx prisma/seed.ts',
   },
   datasource: {
-    url: process.env['DATABASE_URL'],
+    url: isProduction
+      ? process.env['DATABASE_URL']
+      : `mysql://${process.env.LOCAL_DB_USER}:${process.env.LOCAL_DB_PASSWORD}@${process.env.LOCAL_DB_HOST}:${process.env.LOCAL_DB_PORT}/${process.env.LOCAL_DB_NAME}`,
   },
 });

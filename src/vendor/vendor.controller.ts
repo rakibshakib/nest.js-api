@@ -27,6 +27,7 @@ import {
   UpdateVendorApprovalDto,
   UpdateVendorDto,
   UpdateVendorStatusDto,
+  VendorOfferDto,
 } from './dto/update-vendor.dto';
 import { VendorService } from './vendor.service';
 
@@ -113,6 +114,7 @@ export class VendorController {
     return this.vendorService.updateServiceStatusForVendor(id, dto);
   }
 
+  // update vendor logo and cover
   @UseGuards(AuthenticationGuard)
   @Patch(':id/logo')
   @UseInterceptors(
@@ -137,5 +139,15 @@ export class VendorController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.vendorService.uploadLogo(id, file);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/vendor-offers')
+  updateVendorOffer(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() vendorOfferDto: VendorOfferDto,
+    @Request() req: { user: { sub: number; userType: UserType } },
+  ) {
+    return this.vendorService.updateVendorOffer(id, vendorOfferDto, req.user);
   }
 }

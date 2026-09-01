@@ -97,6 +97,7 @@ model Vendor {
   updatedAt        DateTime         @updatedAt
   vendorCategories VendorCategory[]
   vendorServices   VendorService[]
+  vendorOffer      VendorOffer?
 }
 
 model Customer {
@@ -201,4 +202,33 @@ model VendorService {
   updatedAt DateTime @updatedAt
 
   @@id([vendorId, serviceId])
+}
+
+enum OfferType {
+  TEXT
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model VendorOffer {
+  id Int @id @default(autoincrement())
+
+  vendorId Int    @unique
+  vendor   Vendor @relation(fields: [vendorId], references: [userId], onDelete: Cascade)
+
+  type OfferType
+
+  title       String
+  description String?
+
+  value Decimal? @db.Decimal(10, 2)
+
+  startDate     DateTime
+  hasExpireDate Boolean   @default(false)
+  endDate       DateTime?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

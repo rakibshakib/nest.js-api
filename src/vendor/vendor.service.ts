@@ -23,6 +23,7 @@ import {
   UpdateVendorApprovalDto,
   UpdateVendorDto,
   UpdateVendorStatusDto,
+  VendorOfferDto,
 } from './dto/update-vendor.dto';
 
 @Injectable()
@@ -616,5 +617,23 @@ export class VendorService {
         logoPath: uploadedFile.path,
       },
     };
+  }
+
+  // update vendor offer
+  async updateVendorOffer(
+    id: number,
+    dto: VendorOfferDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    if (!dto || Object.keys(dto).length === 0) {
+      throw new BadRequestException('At least one field is required to update');
+    }
+
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
   }
 }

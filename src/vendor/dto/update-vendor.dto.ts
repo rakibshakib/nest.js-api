@@ -57,3 +57,5 @@ export class ToggleVendorServiceDto {
   @IsOptional()
   inActiveServicesId?: number[];
 }
+
+export class VendorOfferDto {}
