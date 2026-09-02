@@ -14,6 +14,6 @@ export default defineConfig({
   datasource: {
     url: isProduction
       ? process.env['DATABASE_URL']
-      : `mysql://${process.env.LOCAL_DB_USER}:${process.env.LOCAL_DB_PASSWORD}@${process.env.LOCAL_DB_HOST}:${process.env.LOCAL_DB_PORT}/${process.env.LOCAL_DB_NAME}`,
+      : process.env['LOCAL_DB_URL'],
   },
 });
