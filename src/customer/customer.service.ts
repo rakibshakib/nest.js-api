@@ -268,7 +268,6 @@ export class CustomerService {
   }
 
   async remove(id: number, user: { sub: number; userType: UserType }) {
-    console.log('deleted', id);
     const isAdmin = user.userType === UserType.ADMIN;
     const isOwner = user.sub === id;
 

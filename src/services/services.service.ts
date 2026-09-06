@@ -1,10 +1,6 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
-import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { PrismaService } from 'src/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import {
@@ -54,8 +50,10 @@ export class ServicesService {
         message: 'Service created successfully',
         content: service,
       };
-    } catch {
-      throw new InternalServerErrorException('Failed to create service');
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        default: 'Failed to create service',
+      });
     }
   }
 
@@ -191,14 +189,10 @@ export class ServicesService {
         content: service,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Service not found');
-      }
-
-      throw new InternalServerErrorException('Failed to update service');
+      handlePrismaError(error, {
+        p2025: 'Service not found',
+        default: 'Failed to update service',
+      });
     }
   }
 
@@ -211,17 +205,13 @@ export class ServicesService {
       });
 
       return {
-        message: 'Category deleted successfully',
+        message: 'Service deleted successfully',
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException('Failed to delete category');
+      handlePrismaError(error, {
+        p2025: 'Service not found',
+        default: 'Failed to delete service',
+      });
     }
   }
 
@@ -237,20 +227,14 @@ export class ServicesService {
       });
 
       return {
-        message: 'Category status updated successfully',
+        message: 'Service status updated successfully',
         content: updated,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException(
-        'Failed to update category status',
-      );
+      handlePrismaError(error, {
+        p2025: 'Service not found',
+        default: 'Failed to update service status',
+      });
     }
   }
 

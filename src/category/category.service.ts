@@ -1,10 +1,5 @@
-import {
-  ConflictException,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { PrismaService } from 'src/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
@@ -35,14 +30,10 @@ export class CategoryService {
         content: category,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Category name already exists');
-      }
-
-      throw new InternalServerErrorException('Failed to create category');
+      handlePrismaError(error, {
+        p2002: 'Category name already exists',
+        default: 'Failed to create category',
+      });
     }
   }
 
@@ -123,21 +114,11 @@ export class CategoryService {
         content: updatedCategory,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Category name already exists');
-      }
-
-      throw new InternalServerErrorException('Failed to update category');
+      handlePrismaError(error, {
+        p2025: 'Category not found',
+        p2002: 'Category name already exists',
+        default: 'Failed to update category',
+      });
     }
   }
 
@@ -160,16 +141,10 @@ export class CategoryService {
         content: updatedCategory,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException(
-        'Failed to update category status',
-      );
+      handlePrismaError(error, {
+        p2025: 'Category not found',
+        default: 'Failed to update category status',
+      });
     }
   }
 
@@ -186,14 +161,10 @@ export class CategoryService {
         content: deletedCategory,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException('Failed to delete category');
+      handlePrismaError(error, {
+        p2025: 'Category not found',
+        default: 'Failed to delete category',
+      });
     }
   }
 }

@@ -3,12 +3,11 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
 import bcrypt from 'bcrypt';
 import { OfferType, UserType, VendorStatus } from 'generated/prisma/enums';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { CategoryService } from 'src/category/category.service';
 import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
@@ -238,14 +237,10 @@ export class VendorService {
         message: 'Vendor updated successfully',
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException('Failed to update vendor');
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to update vendor',
+      });
     }
   }
 
@@ -268,14 +263,10 @@ export class VendorService {
         content: result,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException('Failed to delete vendor');
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to delete vendor',
+      });
     }
   }
 
@@ -297,16 +288,10 @@ export class VendorService {
         content: vendor,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException(
-        'Failed to update vendor approval status',
-      );
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to update vendor approval status',
+      });
     }
   }
 
@@ -326,14 +311,10 @@ export class VendorService {
         content: vendor,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException('Failed to update vendor status');
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to update vendor status',
+      });
     }
   }
 
@@ -561,10 +542,10 @@ export class VendorService {
       return {
         message: 'Vendor service status updated successfully',
       };
-    } catch {
-      throw new InternalServerErrorException(
-        'Failed to update vendor service status',
-      );
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        default: 'Failed to update vendor service status',
+      });
     }
   }
 
@@ -735,15 +716,11 @@ export class VendorService {
         message: 'Vendor offer status updated successfully',
         content: offer,
       };
-    } catch (error) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor offer not found');
-      }
-
-      throw error;
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        p2025: 'Vendor offer not found',
+        default: 'Failed to update vendor offer status',
+      });
     }
   }
 
