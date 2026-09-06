@@ -1,15 +1,12 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
-  Query,
-  Request,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -18,6 +15,7 @@ import { Response } from 'express';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
+import { CurrentUser, QueryPagination } from 'src/common/decorators';
 import { CustomerGuard } from './customer.guard';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -53,10 +51,7 @@ export class CustomerController {
 
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Get()
-  findAll(
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-  ) {
+  findAll(@QueryPagination() { page, limit }: { page: number; limit: number }) {
     return this.customerService.findAll(limit, page);
   }
 
@@ -64,9 +59,9 @@ export class CustomerController {
   @Get(':id')
   findOne(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.customerService.findOne(id, req.user);
+    return this.customerService.findOne(id, user);
   }
 
   @UseGuards(AuthenticationGuard, CustomerGuard)
@@ -74,18 +69,18 @@ export class CustomerController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCustomerDto: UpdateCustomerDto,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.customerService.update(id, updateCustomerDto, req.user);
+    return this.customerService.update(id, updateCustomerDto, user);
   }
 
   @UseGuards(AuthenticationGuard)
   @Delete(':id')
   remove(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.customerService.remove(id, req.user);
+    return this.customerService.remove(id, user);
   }
 
   // toggle customer status to disabled or active

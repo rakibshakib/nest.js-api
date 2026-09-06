@@ -8,7 +8,6 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  Request,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -18,6 +17,7 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
+import { CurrentUser } from 'src/common/decorators';
 import {
   CreateVendorCategoryDto,
   CreateVendorDto,
@@ -59,9 +59,9 @@ export class VendorController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateVendorDto: UpdateVendorDto,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.vendorService.update(id, updateVendorDto, req.user);
+    return this.vendorService.update(id, updateVendorDto, user);
   }
 
   @UseGuards(AuthenticationGuard, AdminGuard)
@@ -93,9 +93,9 @@ export class VendorController {
   updateVendorCategory(
     @Param('id', ParseIntPipe) id: number,
     @Body() categories: CreateVendorCategoryDto,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.vendorService.updateVendorCategory(id, categories, req.user);
+    return this.vendorService.updateVendorCategory(id, categories, user);
   }
 
   @UseGuards(AuthenticationGuard, AdminGuard)
@@ -145,18 +145,18 @@ export class VendorController {
   updateVendorOffer(
     @Param('id', ParseIntPipe) id: number,
     @Body() vendorOfferDto: VendorOfferDto,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.vendorService.updateVendorOffer(id, vendorOfferDto, req.user);
+    return this.vendorService.updateVendorOffer(id, vendorOfferDto, user);
   }
   // delete vendor offer
   @UseGuards(AuthenticationGuard)
   @Delete(':id/vendor-offers')
   deleteVendorOffer(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.vendorService.deleteVendorOffer(id, req.user);
+    return this.vendorService.deleteVendorOffer(id, user);
   }
 
   // update status vendor offer
@@ -165,8 +165,8 @@ export class VendorController {
   updateVendorOfferStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateVendorOfferStatusDto,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.vendorService.updateVendorOfferStatus(id, dto, req.user);
+    return this.vendorService.updateVendorOfferStatus(id, dto, user);
   }
 }

@@ -1,19 +1,17 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
-  Query,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
+import { CurrentUser, QueryPagination } from 'src/common/decorators';
 import { CreateServiceDto } from './dto/create-service.dto';
 import {
   UpdateServiceDto,
@@ -30,16 +28,13 @@ export class ServicesController {
   @Post()
   create(
     @Body() createServiceDto: CreateServiceDto,
-    @Request() req: { user: { sub: number } },
+    @CurrentUser('sub') userId: number,
   ) {
-    return this.servicesService.create(createServiceDto, req?.user?.sub);
+    return this.servicesService.create(createServiceDto, userId);
   }
 
   @Get()
-  findAll(
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-  ) {
+  findAll(@QueryPagination() { page, limit }: { page: number; limit: number }) {
     return this.servicesService.findAll(limit, page);
   }
 

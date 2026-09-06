@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
@@ -9,12 +8,12 @@ import {
   Patch,
   Post,
   Query,
-  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
+import { CurrentUser, QueryPagination } from 'src/common/decorators';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
@@ -31,18 +30,17 @@ export class CategoryController {
   @Post()
   create(
     @Body() createCategoryDto: CreateCategoryDto,
-    @Request() req: { user: { sub: number; email: string } },
+    @CurrentUser() user: { sub: number; email: string },
   ) {
-    return this.categoryService.create(createCategoryDto, req.user);
+    return this.categoryService.create(createCategoryDto, user);
   }
 
   @Get()
   findAll(
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('all_services', new DefaultValuePipe(false)) all_services: boolean,
+    @QueryPagination() { page, limit }: { page: number; limit: number },
+    @Query('all_services') all_services?: boolean,
   ) {
-    return this.categoryService.findAll(limit, page, all_services);
+    return this.categoryService.findAll(limit, page, !!all_services);
   }
 
   @Get(':id')
