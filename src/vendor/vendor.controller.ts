@@ -17,7 +17,11 @@ import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
-import { CurrentUser } from 'src/common/decorators';
+import {
+  CurrentUser,
+  QueryPagination,
+  type Pagination,
+} from 'src/common/decorators';
 import {
   CreateVendorCategoryDto,
   CreateVendorDto,
@@ -44,8 +48,8 @@ export class VendorController {
 
   @UseGuards(AuthenticationGuard)
   @Get()
-  findAll() {
-    return this.vendorService.findAll();
+  findAll(@QueryPagination() { page, limit }: Pagination) {
+    return this.vendorService.findAll(page, limit);
   }
 
   @UseGuards(AuthenticationGuard)
@@ -100,8 +104,11 @@ export class VendorController {
 
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Get(':id/services')
-  getAllProvidedServicesByVendor(@Param('id', ParseIntPipe) id: number) {
-    return this.vendorService.findAllProvidedServices(id);
+  getAllProvidedServicesByVendor(
+    @Param('id', ParseIntPipe) id: number,
+    @QueryPagination() { page, limit }: Pagination,
+  ) {
+    return this.vendorService.findAllProvidedServices(id, page, limit);
   }
 
   @UseGuards(AuthenticationGuard, AdminGuard)

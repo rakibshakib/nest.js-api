@@ -96,40 +96,55 @@ export class VendorService {
     };
   }
 
-  async findAll() {
-    const vendors = await this.prisma.vendor.findMany({
-      select: {
-        userId: true,
-        businessName: true,
-        address: true,
-        status: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        rating: true,
-        responseTime: true,
-        logoUrl: true,
-        logoPath: true,
+  async findAll(page: number, limit: number) {
+    const skip = (page - 1) * limit;
 
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
+    const [vendors, total] = await Promise.all([
+      this.prisma.vendor.findMany({
+        skip,
+        take: limit,
+        select: {
+          userId: true,
+          businessName: true,
+          address: true,
+          status: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          rating: true,
+          responseTime: true,
+          logoUrl: true,
+          logoPath: true,
+
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
           },
+          vendorOffer: true,
         },
-        vendorOffer: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.vendor.count(),
+    ]);
 
-    return vendors.map(({ user, ...vendor }) => ({
-      ...vendor,
-      name: user.name,
-      phone: user.phone,
-    }));
+    return {
+      data: vendors.map(({ user, ...vendor }) => ({
+        ...vendor,
+        name: user.name,
+        phone: user.phone,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: number) {
@@ -412,7 +427,7 @@ export class VendorService {
   }
 
   // find all categories wise all service for a vendor
-  async findAllProvidedServices(vendorId: number) {
+  async findAllProvidedServices(vendorId: number, page: number, limit: number) {
     const vendor = await this.prisma.vendor.findUnique({
       where: {
         userId: vendorId,
@@ -423,32 +438,46 @@ export class VendorService {
       throw new NotFoundException('Vendor not found');
     }
 
-    const services = await this.prisma.vendorService.findMany({
-      where: {
-        vendorId,
-        service: {
-          isActive: true,
+    const skip = (page - 1) * limit;
+
+    const [vendorServices, total] = await Promise.all([
+      this.prisma.vendorService.findMany({
+        where: {
+          vendorId,
+          service: {
+            isActive: true,
+          },
         },
-      },
-      select: {
-        service: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-            category: {
-              select: {
-                id: true,
-                name: true,
+        skip,
+        take: limit,
+        select: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              category: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
+          isActive: true,
         },
-        isActive: true,
-      },
-    });
+      }),
+      this.prisma.vendorService.count({
+        where: {
+          vendorId,
+          service: {
+            isActive: true,
+          },
+        },
+      }),
+    ]);
 
-    type Service = (typeof services)[number]['service'];
+    type Service = (typeof vendorServices)[number]['service'];
     type Category = Service['category'];
 
     type GroupedService = {
@@ -459,8 +488,8 @@ export class VendorService {
     };
 
     const groupedServices = Object.values(
-      services.reduce<Record<number, GroupedService>>((acc, vendorService) => {
-        const { category, ...service } = vendorService.service;
+      vendorServices.reduce<Record<number, GroupedService>>((acc, vs) => {
+        const { category, ...service } = vs.service;
 
         if (!acc[category.id]) {
           acc[category.id] = {
@@ -471,7 +500,7 @@ export class VendorService {
 
         acc[category.id].services.push({
           ...service,
-          isActive: vendorService?.isActive ?? false,
+          isActive: vs?.isActive ?? false,
         });
 
         return acc;
@@ -479,8 +508,13 @@ export class VendorService {
     );
 
     return {
-      message: 'Vendor services fetched successfully',
-      content: groupedServices,
+      data: groupedServices,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
