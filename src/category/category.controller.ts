@@ -38,9 +38,9 @@ export class CategoryController {
   @Get()
   findAll(
     @QueryPagination() { page, limit }: { page: number; limit: number },
-    @Query('all_services') all_services?: boolean,
+    @Query('all_services') all_services?: string,
   ) {
-    return this.categoryService.findAll(limit, page, !!all_services);
+    return this.categoryService.findAll(limit, page, all_services === 'true');
   }
 
   @Get(':id')

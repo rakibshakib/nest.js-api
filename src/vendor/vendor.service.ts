@@ -438,44 +438,30 @@ export class VendorService {
       throw new NotFoundException('Vendor not found');
     }
 
-    const skip = (page - 1) * limit;
-
-    const [vendorServices, total] = await Promise.all([
-      this.prisma.vendorService.findMany({
-        where: {
-          vendorId,
-          service: {
-            isActive: true,
-          },
+    const vendorServices = await this.prisma.vendorService.findMany({
+      where: {
+        vendorId,
+        service: {
+          isActive: true,
         },
-        skip,
-        take: limit,
-        select: {
-          service: {
-            select: {
-              id: true,
-              name: true,
-              description: true,
-              category: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+      },
+      select: {
+        service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            category: {
+              select: {
+                id: true,
+                name: true,
               },
             },
           },
-          isActive: true,
         },
-      }),
-      this.prisma.vendorService.count({
-        where: {
-          vendorId,
-          service: {
-            isActive: true,
-          },
-        },
-      }),
-    ]);
+        isActive: true,
+      },
+    });
 
     type Service = (typeof vendorServices)[number]['service'];
     type Category = Service['category'];
@@ -507,8 +493,11 @@ export class VendorService {
       }, {}),
     );
 
+    const total = groupedServices.length;
+    const skip = (page - 1) * limit;
+
     return {
-      data: groupedServices,
+      data: groupedServices.slice(skip, skip + limit),
       meta: {
         total,
         page,
@@ -583,7 +572,18 @@ export class VendorService {
     }
   }
 
-  async uploadLogo(id: number, file: Express.Multer.File) {
+  async uploadLogo(
+    id: number,
+    file: Express.Multer.File,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
+
     if (!file) {
       throw new BadRequestException('Logo image is required');
     }

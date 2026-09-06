@@ -143,8 +143,9 @@ export class VendorController {
   uploadLogo(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.vendorService.uploadLogo(id, file);
+    return this.vendorService.uploadLogo(id, file, user);
   }
 
   @UseGuards(AuthenticationGuard)
