@@ -6,7 +6,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
 import bcrypt from 'bcrypt';
 import { OfferType, UserType, VendorStatus } from 'generated/prisma/enums';
 import { CategoryService } from 'src/category/category.service';
@@ -348,8 +348,6 @@ export class VendorService {
 
     const categoryIds = [...new Set(dto.categoryIds)];
 
-    console.log({ categoryIds });
-
     if (!categoryIds.length) {
       throw new BadRequestException('At least one category is required');
     }
@@ -382,7 +380,6 @@ export class VendorService {
         categoryIds,
         tx,
       );
-      console.log({ services });
       const serviceIds = services.map((service) => service.id);
 
       // Remove services that are no longer part of selected categories
@@ -513,7 +510,6 @@ export class VendorService {
     if (!dto) {
       throw new BadRequestException('service list is required');
     }
-    console.log({ dto });
     const activeServiceIds = dto.activeServicesId ?? [];
     const inactiveServiceIds = dto.inActiveServicesId ?? [];
 

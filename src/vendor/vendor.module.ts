@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { jwtConstants } from 'src/auth/constant';
 import { CategoryModule } from 'src/category/category.module';
 import { SupabaseModule } from 'src/common/supabase/supabase.module';
 import { PrismaService } from 'src/prisma.service';
@@ -12,16 +10,6 @@ import { VendorService } from './vendor.service';
 @Module({
   controllers: [VendorController],
   providers: [VendorService, PrismaService],
-  imports: [
-    UserModule,
-    ServicesModule,
-    CategoryModule,
-    SupabaseModule,
-    JwtModule.register({
-      global: true,
-      secret: jwtConstants.secret,
-      signOptions: { expiresIn: 2592000 }, // 1 day
-    }),
-  ],
+  imports: [UserModule, ServicesModule, CategoryModule, SupabaseModule],
 })
 export class VendorModule {}

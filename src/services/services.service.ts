@@ -3,7 +3,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
 import { Prisma } from 'generated/prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';

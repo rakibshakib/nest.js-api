@@ -110,8 +110,6 @@ export class VendorController {
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: ToggleVendorServiceDto,
   ) {
-    console.log(dto, 'controller');
-
     return this.vendorService.updateServiceStatusForVendor(id, dto);
   }
 
@@ -121,7 +119,7 @@ export class VendorController {
   @UseInterceptors(
     FileInterceptor('file', {
       limits: {
-        fileSize: 2 * 1024 * 1024, // 5 MB
+        fileSize: 2 * 1024 * 1024, // 2 MB
       },
       fileFilter: (_req, file, callback) => {
         if (!file.mimetype.startsWith('image/')) {

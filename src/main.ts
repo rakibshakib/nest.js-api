@@ -20,19 +20,19 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe());
 
-  const config = new DocumentBuilder()
-    .setTitle('Learning API')
-    .setDescription('Note API description')
-    .setVersion('1.0')
-    .addTag('services')
-    .addBearerAuth()
-    .build();
+  // const config = new DocumentBuilder()
+  //   .setTitle('Learning API')
+  //   .setDescription('Note API description')
+  //   .setVersion('1.0')
+  //   .addTag('services')
+  //   .addBearerAuth()
+  //   .build();
 
-  const documentFactory = () =>
-    SwaggerModule.createDocument(app, config, {
-      operationIdFactory: (controllerKey: string, methodKey: string) =>
-        methodKey,
-    });
+  // const documentFactory = () =>
+  //   SwaggerModule.createDocument(app, config, {
+  //     operationIdFactory: (controllerKey: string, methodKey: string) =>
+  //       methodKey,
+  //   });
   // SwaggerModule.setup('api', app, documentFactory);
 
   await app.listen(8000);

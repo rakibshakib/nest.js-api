@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -11,11 +11,12 @@ import { ServicesModule } from './services/services.module';
 import { UserModule } from './user/user.module';
 import { VendorModule } from './vendor/vendor.module';
 
+@Global()
 @Module({
   imports: [
+    ConfigModule.forRoot(),
     AuthModule,
     UserModule,
-    ConfigModule.forRoot(),
     NoteModule,
     CategoryModule,
     VendorModule,
@@ -25,5 +26,6 @@ import { VendorModule } from './vendor/vendor.module';
   ],
   controllers: [AppController],
   providers: [AppService],
+  exports: [ConfigModule],
 })
 export class AppModule {}
