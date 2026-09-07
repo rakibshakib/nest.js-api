@@ -1,15 +1,23 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { UserType, VendorStatus } from 'generated/prisma/enums';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
+import { MailService } from 'src/common/mail/mail.service';
+import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { RegisterDto } from './dto/register.dto';
+
+const FIXED_OTP = '123456';
+const RESET_TOKEN_TTL_SECONDS = 300;
 
 @Injectable()
 export class AuthService {
@@ -17,6 +25,8 @@ export class AuthService {
   constructor(
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(request: RegisterDto) {
@@ -161,5 +171,71 @@ export class AuthService {
       user: userResponse,
       access_token,
     };
+  }
+
+  async requestOtp(email: string) {
+    const user = await this.userService.getUserByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found with this email');
+    }
+
+    await this.mailService.sendOtp(email, FIXED_OTP);
+
+    return {
+      message: 'OTP sent to your email',
+    };
+  }
+
+  async verifyOtp(email: string, otp: string) {
+    const user = await this.userService.getUserByEmail(email);
+
+    if (!user) {
+      throw new NotFoundException('User not found with this email');
+    }
+
+    if (otp !== FIXED_OTP) {
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    const reset_token = await this.jwtService.signAsync(
+      { sub: user.id, email: user.email, purpose: 'password-reset' },
+      { expiresIn: RESET_TOKEN_TTL_SECONDS },
+    );
+
+    return {
+      message: 'OTP verified, you have 5 minutes to reset your password',
+      reset_token,
+    };
+  }
+
+  async resetPassword(
+    userId: number,
+    newPassword: string,
+    confirmPassword: string,
+  ) {
+    if (newPassword !== confirmPassword) {
+      throw new BadRequestException(
+        'Password and confirm password do not match',
+      );
+    }
+
+    try {
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      });
+
+      return {
+        message: 'Password reset successfully',
+      };
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        p2025: 'User not found',
+        default: 'Failed to reset password',
+      });
+    }
   }
 }
