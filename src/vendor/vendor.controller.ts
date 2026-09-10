@@ -37,7 +37,7 @@ import {
 import { VendorService } from './vendor.service';
 
 @ApiBearerAuth()
-@Controller('api/vendor')
+@Controller('vendor')
 export class VendorController {
   constructor(private readonly vendorService: VendorService) {}
 

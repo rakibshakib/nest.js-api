@@ -22,7 +22,7 @@ import {
 } from './dto/update-category.dto';
 
 @ApiBearerAuth()
-@Controller('api/category')
+@Controller('category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 

@@ -25,7 +25,7 @@ import {
 } from './dto/update-customer.dto';
 
 @ApiBearerAuth()
-@Controller('api/customer')
+@Controller('customer')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 

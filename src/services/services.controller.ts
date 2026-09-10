@@ -21,7 +21,7 @@ import { ServicesService } from './services.service';
 
 @ApiBearerAuth()
 @UseGuards(AuthenticationGuard)
-@Controller('api/service')
+@Controller('service')
 export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 

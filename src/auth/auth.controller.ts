@@ -16,7 +16,7 @@ import {
 import { LoginDto } from './dto/register.dto';
 import { ResetTokenGuard } from './reset-token.guard';
 
-@Controller('api/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
