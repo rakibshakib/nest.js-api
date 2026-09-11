@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from 'generated/prisma/client';
 import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
@@ -128,6 +129,36 @@ export class CategoryService {
     if (!category) {
       throw new NotFoundException('Category not found');
     }
+  }
+
+  async findForDropdown(isActive?: string, search?: string) {
+    const where: Prisma.CategoryWhereInput = {};
+
+    if (isActive === 'true') {
+      where.isActive = true;
+    } else if (isActive === 'false') {
+      where.isActive = false;
+    }
+
+    if (search?.trim()) {
+      where.name = { contains: search.trim(), mode: 'insensitive' };
+    }
+
+    const categories = await this.prisma.category.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 10,
+    });
+
+    return {
+      data: categories,
+    };
   }
 
   async filterCategories(categoryIds: number[]) {

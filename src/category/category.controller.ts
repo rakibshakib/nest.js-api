@@ -49,6 +49,14 @@ export class CategoryController {
     return this.categoryService.findAll(limit, page, all_services === 'true');
   }
 
+  @Get('drop-down')
+  findForDropdown(
+    @Query('isActive') isActive?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.categoryService.findForDropdown(isActive, search);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.findOne(id);
