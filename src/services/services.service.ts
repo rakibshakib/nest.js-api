@@ -237,7 +237,7 @@ export class ServicesService {
       });
 
       if (existing.imagePath) {
-        await this.supabaseService.deleteFile(existing.imagePath as string);
+        await this.supabaseService.deleteFile(existing.imagePath);
       }
 
       return {

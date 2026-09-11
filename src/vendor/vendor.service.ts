@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 import { OfferType, UserType, VendorStatus } from 'generated/prisma/enums';
-import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { CategoryService } from 'src/category/category.service';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
 import { ServicesService } from 'src/services/services.service';
@@ -508,6 +508,8 @@ export class VendorService {
             id: true,
             name: true,
             description: true,
+            imageUrl: true,
+            imagePath: true,
             category: {
               select: {
                 id: true,
@@ -520,14 +522,23 @@ export class VendorService {
       },
     });
 
-    type Service = (typeof vendorServices)[number]['service'];
-    type Category = Service['category'];
+    type ServiceCategory = {
+      id: number;
+      name: string;
+    };
+
+    type ProvidedService = {
+      id: number;
+      name: string;
+      description: string | null;
+      imageUrl: string | null;
+      imagePath: string | null;
+      isActive: boolean;
+    };
 
     type GroupedService = {
-      category: Category;
-      services: (Omit<Service, 'category'> & {
-        isActive: boolean;
-      })[];
+      category: ServiceCategory;
+      services: ProvidedService[];
     };
 
     const groupedServices = Object.values(
@@ -543,7 +554,7 @@ export class VendorService {
 
         acc[category.id].services.push({
           ...service,
-          isActive: vs?.isActive ?? false,
+          isActive: vs.isActive,
         });
 
         return acc;
