@@ -1,3 +1,0 @@
--- AlterTable
-ALTER TABLE `Vendor` ADD COLUMN `rating` DECIMAL(3, 2) NOT NULL DEFAULT 0,
-    ADD COLUMN `responseTime` VARCHAR(191) NULL DEFAULT '30 Min';
