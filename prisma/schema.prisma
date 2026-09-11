@@ -105,7 +105,11 @@ model Customer {
 
   address  String?
   isActive Boolean @default(true)
-  user     User    @relation(fields: [userId], references: [id])
+
+  imageUrl  String?
+  imagePath String?
+
+  user User @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -116,6 +120,9 @@ model Category {
   name        String  @unique
   description String?
   isActive    Boolean @default(true)
+
+  imageUrl  String?
+  imagePath String?
 
   createdById Int
   createdBy   User @relation(fields: [createdById], references: [id])
@@ -154,6 +161,9 @@ model Service {
   name             String
   shortDescription String?
   description      String? @db.Text
+
+  imageUrl  String?
+  imagePath String?
 
   basePrice Decimal @db.Decimal(10, 2)
 
