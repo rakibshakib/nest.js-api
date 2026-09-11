@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -31,6 +33,7 @@ export class VendorService {
   constructor(
     private readonly userService: UserService,
     private readonly serviceService: ServicesService,
+    @Inject(forwardRef(() => CategoryService))
     private readonly categoryService: CategoryService,
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
@@ -130,6 +133,60 @@ export class VendorService {
         },
       }),
       this.prisma.vendor.count(),
+    ]);
+
+    return {
+      data: vendors.map(({ user, ...vendor }) => ({
+        ...vendor,
+        name: user.name,
+        phone: user.phone,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findVendorsByCategory(categoryId: number, limit: number, page: number) {
+    const skip = (page - 1) * limit;
+    const where = { vendorCategories: { some: { categoryId } } };
+
+    const [vendors, total] = await Promise.all([
+      this.prisma.vendor.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          userId: true,
+          businessName: true,
+          address: true,
+          status: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          rating: true,
+          responseTime: true,
+          logoUrl: true,
+          logoPath: true,
+
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          vendorOffer: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+
+      this.prisma.vendor.count({ where }),
     ]);
 
     return {

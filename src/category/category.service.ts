@@ -1,7 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
+import { ServicesService } from 'src/services/services.service';
+import { VendorService } from 'src/vendor/vendor.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
   UpdateCategoryDto,
@@ -13,6 +20,9 @@ export class CategoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
+    private readonly servicesService: ServicesService,
+    @Inject(forwardRef(() => VendorService))
+    private readonly vendorService: VendorService,
   ) {}
 
   async create(
@@ -70,6 +80,12 @@ export class CategoryService {
         skip,
         include: {
           services: Boolean(all_services),
+          _count: {
+            select: {
+              services: true,
+              vendorCategories: true,
+            },
+          },
         },
       }),
 
@@ -79,7 +95,11 @@ export class CategoryService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: categories,
+      data: categories.map(({ _count, ...category }) => ({
+        ...category,
+        totalServices: _count.services,
+        totalVendors: _count.vendorCategories,
+      })),
       meta: {
         total,
         page,
@@ -87,6 +107,27 @@ export class CategoryService {
         totalPages,
       },
     };
+  }
+
+  async findServicesByCategory(id: number, limit: number, page: number) {
+    await this.ensureExists(id);
+    return this.servicesService.findServicesByCategory(id, limit, page);
+  }
+
+  async findVendorsByCategory(id: number, limit: number, page: number) {
+    await this.ensureExists(id);
+    return this.vendorService.findVendorsByCategory(id, limit, page);
+  }
+
+  private async ensureExists(id: number) {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
   }
 
   async filterCategories(categoryIds: number[]) {
@@ -111,13 +152,26 @@ export class CategoryService {
       },
       include: {
         services: true,
+        _count: {
+          select: {
+            services: true,
+            vendorCategories: true,
+          },
+        },
       },
     });
 
     if (!category) {
       throw new NotFoundException('Category not found');
     }
-    return category;
+
+    const { _count, ...rest } = category;
+
+    return {
+      ...rest,
+      totalServices: _count.services,
+      totalVendors: _count.vendorCategories,
+    };
   }
 
   async update(
@@ -159,7 +213,7 @@ export class CategoryService {
       });
 
       if (file && existing.imagePath) {
-        await this.supabaseService.deleteFile(existing.imagePath);
+        await this.supabaseService.deleteFile(existing.imagePath as string);
       }
 
       return {

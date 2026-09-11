@@ -237,7 +237,7 @@ export class ServicesService {
       });
 
       if (existing.imagePath) {
-        await this.supabaseService.deleteFile(existing.imagePath);
+        await this.supabaseService.deleteFile(existing.imagePath as string);
       }
 
       return {
@@ -292,6 +292,41 @@ export class ServicesService {
         default: 'Failed to update service status',
       });
     }
+  }
+
+  async findServicesByCategory(
+    categoryId: number,
+    limit: number,
+    page: number,
+  ) {
+    const skip = (page - 1) * limit;
+    const where = { categoryId };
+
+    const [services, total] = await Promise.all([
+      this.prisma.service.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          variations: true,
+        },
+      }),
+
+      this.prisma.service.count({ where }),
+    ]);
+
+    return {
+      data: services,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findServiceIdsByCategoryIds(

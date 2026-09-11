@@ -54,6 +54,22 @@ export class CategoryController {
     return this.categoryService.findOne(id);
   }
 
+  @Get(':id/services')
+  findServicesByCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @QueryPagination() { page, limit }: { page: number; limit: number },
+  ) {
+    return this.categoryService.findServicesByCategory(id, limit, page);
+  }
+
+  @Get(':id/vendors')
+  findVendorsByCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @QueryPagination() { page, limit }: { page: number; limit: number },
+  ) {
+    return this.categoryService.findVendorsByCategory(id, limit, page);
+  }
+
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Patch(':id')
   @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
