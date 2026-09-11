@@ -18,6 +18,12 @@ export function ToBoolean() {
   });
 }
 
+export function EmptyToUndefined() {
+  return Transform(({ value }: { value: unknown }) =>
+    value === '' ? undefined : value,
+  );
+}
+
 export function JsonArray() {
   return Transform(({ value }: { value: unknown }) => {
     if (typeof value !== 'string') return value;

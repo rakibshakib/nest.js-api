@@ -10,6 +10,7 @@ import {
   IsStrongPassword,
   ValidateIf,
 } from 'class-validator';
+import { EmptyToUndefined } from 'src/common/decorators';
 
 export class UpdateVendorDto {
   @IsOptional()
@@ -80,6 +81,7 @@ export class VendorOfferDto {
   @IsOptional()
   value?: number;
 
+  @EmptyToUndefined()
   @IsDateString()
   @IsOptional()
   startDate?: string;
@@ -88,6 +90,7 @@ export class VendorOfferDto {
   @IsOptional()
   hasExpireDate?: boolean;
 
+  @EmptyToUndefined()
   @IsDateString()
   @IsOptional()
   endDate?: string;
