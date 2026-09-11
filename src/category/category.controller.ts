@@ -8,12 +8,16 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
 import { CurrentUser, QueryPagination } from 'src/common/decorators';
+import { imageUploadOptions } from 'src/common/upload/image-upload.util';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
@@ -28,11 +32,13 @@ export class CategoryController {
 
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Post()
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
   create(
     @Body() createCategoryDto: CreateCategoryDto,
     @CurrentUser() user: { sub: number; email: string },
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.categoryService.create(createCategoryDto, user);
+    return this.categoryService.create(createCategoryDto, user, file);
   }
 
   @Get()
@@ -50,11 +56,13 @@ export class CategoryController {
 
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCategoryDto: UpdateCategoryDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.categoryService.update(id, updateCategoryDto);
+    return this.categoryService.update(id, updateCategoryDto, file);
   }
 
   @UseGuards(AuthenticationGuard, AdminGuard)

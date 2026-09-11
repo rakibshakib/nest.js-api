@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -22,6 +21,7 @@ import {
   QueryPagination,
   type Pagination,
 } from 'src/common/decorators';
+import { imageUploadOptions } from 'src/common/upload/image-upload.util';
 import {
   CreateVendorCategoryDto,
   CreateVendorDto,
@@ -123,23 +123,7 @@ export class VendorController {
   // update vendor logo and cover
   @UseGuards(AuthenticationGuard)
   @Patch(':id/logo')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: {
-        fileSize: 2 * 1024 * 1024, // 2 MB
-      },
-      fileFilter: (_req, file, callback) => {
-        if (!file.mimetype.startsWith('image/')) {
-          return callback(
-            new BadRequestException('Only image files are allowed'),
-            false,
-          );
-        }
-
-        callback(null, true);
-      },
-    }),
-  )
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions(2)))
   uploadLogo(
     @Param('id', ParseIntPipe) id: number,
     @UploadedFile() file: Express.Multer.File,

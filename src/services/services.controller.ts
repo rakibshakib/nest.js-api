@@ -7,11 +7,15 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { CurrentUser, QueryPagination } from 'src/common/decorators';
+import { imageUploadOptions } from 'src/common/upload/image-upload.util';
 import { CreateServiceDto } from './dto/create-service.dto';
 import {
   UpdateServiceDto,
@@ -26,11 +30,13 @@ export class ServicesController {
   constructor(private readonly servicesService: ServicesService) {}
 
   @Post()
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
   create(
     @Body() createServiceDto: CreateServiceDto,
     @CurrentUser('sub') userId: number,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.servicesService.create(createServiceDto, userId);
+    return this.servicesService.create(createServiceDto, userId, file);
   }
 
   @Get()
@@ -44,11 +50,13 @@ export class ServicesController {
   }
 
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateServiceDto: UpdateServiceDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.servicesService.update(id, updateServiceDto);
+    return this.servicesService.update(id, updateServiceDto, file);
   }
 
   @Delete(':id')

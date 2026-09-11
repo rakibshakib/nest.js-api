@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import bcrypt from 'bcrypt';
 import { UserType } from 'generated/prisma/enums';
 import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
+import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
 import { UserService } from 'src/user/user.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -27,6 +28,7 @@ export class CustomerService {
     private readonly userService: UserService,
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly supabaseService: SupabaseService,
   ) {}
 
   async create(createCustomerDto: CreateCustomerDto) {
@@ -297,6 +299,94 @@ export class CustomerService {
         default: 'Failed to delete customer',
       });
     }
+  }
+
+  async uploadImage(
+    id: number,
+    file: Express.Multer.File,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to update this customer',
+      );
+    }
+
+    if (!file) {
+      throw new BadRequestException('Image file is required');
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId: id },
+      select: { userId: true, imagePath: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const filePath = `customers/${id}/image-${Date.now()}`;
+    const uploadedFile = await this.supabaseService.uploadFile(file, filePath);
+    const imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+
+    await this.prisma.customer.update({
+      where: { userId: id },
+      data: {
+        imageUrl,
+        imagePath: uploadedFile.path,
+      },
+    });
+
+    if (customer.imagePath) {
+      await this.supabaseService.deleteFile(customer.imagePath);
+    }
+
+    return {
+      message: 'Customer image uploaded successfully',
+      content: {
+        imageUrl,
+        imagePath: uploadedFile.path,
+      },
+    };
+  }
+
+  async removeImage(id: number, user: { sub: number; userType: UserType }) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to update this customer',
+      );
+    }
+
+    const customer = await this.prisma.customer.findUnique({
+      where: { userId: id },
+      select: { userId: true, imagePath: true },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    if (customer.imagePath) {
+      await this.supabaseService.deleteFile(customer.imagePath);
+    }
+
+    await this.prisma.customer.update({
+      where: { userId: id },
+      data: {
+        imageUrl: null,
+        imagePath: null,
+      },
+    });
+
+    return {
+      message: 'Customer image removed successfully',
+    };
   }
 
   private formatCustomer(customer: CustomerWithUser) {

@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
+import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
@@ -9,19 +10,38 @@ import {
 
 @Injectable()
 export class CategoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
   async create(
     createCategoryDto: CreateCategoryDto,
     user: { sub: number; email: string },
+    file?: Express.Multer.File,
   ) {
     try {
+      let imageUrl: string | undefined;
+      let imagePath: string | undefined;
+
+      if (file) {
+        const filePath = `categories/${Date.now()}-${file.originalname}`;
+        const uploadedFile = await this.supabaseService.uploadFile(
+          file,
+          filePath,
+        );
+        imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+        imagePath = uploadedFile.path;
+      }
+
       const category = await this.prisma.category.create({
         data: {
           name: createCategoryDto.name,
           description: createCategoryDto.description,
           isActive: createCategoryDto.isActive ?? true,
           createdById: user.sub,
+          imageUrl,
+          imagePath,
         },
       });
 
@@ -100,14 +120,47 @@ export class CategoryService {
     return category;
   }
 
-  async update(id: number, updateCategoryDto: UpdateCategoryDto) {
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto,
+    file?: Express.Multer.File,
+  ) {
+    const existing = await this.prisma.category.findUnique({
+      where: { id },
+      select: { id: true, imagePath: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Category not found');
+    }
+
     try {
+      let imageUrl: string | undefined;
+      let imagePath: string | undefined;
+
+      if (file) {
+        const filePath = `categories/${id}-${Date.now()}-${file.originalname}`;
+        const uploadedFile = await this.supabaseService.uploadFile(
+          file,
+          filePath,
+        );
+        imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+        imagePath = uploadedFile.path;
+      }
+
       const updatedCategory = await this.prisma.category.update({
         where: {
           id,
         },
-        data: updateCategoryDto,
+        data: {
+          ...updateCategoryDto,
+          ...(file ? { imageUrl, imagePath } : {}),
+        },
       });
+
+      if (file && existing.imagePath) {
+        await this.supabaseService.deleteFile(existing.imagePath);
+      }
 
       return {
         message: 'Category updated successfully',

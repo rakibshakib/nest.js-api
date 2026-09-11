@@ -10,6 +10,7 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
+import { JsonArray, ToNumber } from 'src/common/decorators';
 
 export enum DiscountType {
   PERCENTAGE = 'PERCENTAGE',
@@ -21,6 +22,7 @@ export class ServiceVariationDto {
   @IsNotEmpty()
   name: string;
 
+  @ToNumber()
   @IsNumber()
   @IsPositive()
   price: number;
@@ -39,11 +41,13 @@ export class CreateServiceDto {
   @IsString()
   description?: string;
 
+  @ToNumber()
   @IsNumber()
   @IsPositive()
   basePrice: number;
 
   @IsOptional()
+  @ToNumber()
   @IsNumber()
   @IsPositive()
   discountAmount?: number;
@@ -52,11 +56,13 @@ export class CreateServiceDto {
   @IsEnum(DiscountType)
   discountType?: DiscountType;
 
+  @ToNumber()
   @IsInt()
   @IsPositive()
   categoryId: number;
 
   @IsOptional()
+  @JsonArray()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ServiceVariationDto)

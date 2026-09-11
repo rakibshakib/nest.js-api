@@ -8,14 +8,18 @@ import {
   Patch,
   Post,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
 import { CurrentUser, QueryPagination } from 'src/common/decorators';
+import { imageUploadOptions } from 'src/common/upload/image-upload.util';
 import { CustomerGuard } from './customer.guard';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -91,5 +95,25 @@ export class CustomerController {
     @Body() dto: updateCustomerStatusDto,
   ) {
     return this.customerService.updateStatus(id, dto);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/image')
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
+  uploadImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: { sub: number; userType: UserType },
+  ) {
+    return this.customerService.uploadImage(id, file, user);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Delete(':id/image')
+  removeImage(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { sub: number; userType: UserType },
+  ) {
+    return this.customerService.removeImage(id, user);
   }
 }

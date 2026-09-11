@@ -1,6 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from 'generated/prisma/client';
 import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
+import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import {
@@ -11,11 +16,29 @@ import {
 
 @Injectable()
 export class ServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
-  async create(createServiceDto: CreateServiceDto, userId: number) {
+  async create(
+    createServiceDto: CreateServiceDto,
+    userId: number,
+    file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Service image is required');
+    }
+
     try {
       const { variations, ...serviceData } = createServiceDto;
+
+      const filePath = `services/${Date.now()}-${file.originalname}`;
+      const uploadedFile = await this.supabaseService.uploadFile(
+        file,
+        filePath,
+      );
+      const imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
 
       const service = await this.prisma.$transaction(async (tx) => {
         const newService = await tx.service.create({
@@ -25,6 +48,8 @@ export class ServicesService {
             totalReviews: 0,
             isActive: true,
             createdById: userId,
+            imageUrl,
+            imagePath: uploadedFile.path,
           },
         });
 
@@ -110,9 +135,33 @@ export class ServicesService {
     };
   }
 
-  async update(id: number, updateServiceDto: UpdateServiceDto) {
+  async update(
+    id: number,
+    updateServiceDto: UpdateServiceDto,
+    file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Service image is required');
+    }
+
+    const existing = await this.prisma.service.findUnique({
+      where: { id },
+      select: { id: true, imagePath: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Service not found');
+    }
+
     try {
       const { variations, ...serviceData } = updateServiceDto;
+
+      const filePath = `services/${id}-${Date.now()}-${file.originalname}`;
+      const uploadedFile = await this.supabaseService.uploadFile(
+        file,
+        filePath,
+      );
+      const imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
 
       const service = await this.prisma.$transaction(async (tx) => {
         await tx.service.update({
@@ -121,6 +170,8 @@ export class ServicesService {
           },
           data: {
             ...serviceData,
+            imageUrl,
+            imagePath: uploadedFile.path,
           },
         });
 
@@ -184,6 +235,11 @@ export class ServicesService {
           },
         });
       });
+
+      if (existing.imagePath) {
+        await this.supabaseService.deleteFile(existing.imagePath);
+      }
+
       return {
         message: 'Service updated successfully',
         content: service,
