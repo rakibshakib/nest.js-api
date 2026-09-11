@@ -120,7 +120,7 @@ export class VendorController {
     return this.vendorService.updateServiceStatusForVendor(id, dto);
   }
 
-  // update vendor logo and cover
+  // update vendor logo
   @UseGuards(AuthenticationGuard)
   @Patch(':id/logo')
   @UseInterceptors(FileInterceptor('file', imageUploadOptions(2)))
@@ -130,6 +130,18 @@ export class VendorController {
     @CurrentUser() user: { sub: number; userType: UserType },
   ) {
     return this.vendorService.uploadLogo(id, file, user);
+  }
+
+  // update vendor cover
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/cover')
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions(5)))
+  uploadCover(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: { sub: number; userType: UserType },
+  ) {
+    return this.vendorService.uploadCover(id, file, user);
   }
 
   @UseGuards(AuthenticationGuard)

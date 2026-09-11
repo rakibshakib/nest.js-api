@@ -690,6 +690,67 @@ export class VendorService {
     };
   }
 
+  async uploadCover(
+    id: number,
+    file: Express.Multer.File,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
+
+    if (!file) {
+      throw new BadRequestException('Cover image is required');
+    }
+
+    const vendor = await this.prisma.vendor.findUnique({
+      where: {
+        userId: id,
+      },
+      select: {
+        userId: true,
+        coverPath: true,
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    // upload file
+    const filePath = `vendors/${id}/cover-${Date.now()}`;
+
+    const uploadedFile = await this.supabaseService.uploadFile(file, filePath);
+
+    const publicUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+
+    await this.prisma.vendor.update({
+      where: {
+        userId: id,
+      },
+      data: {
+        coverUrl: publicUrl,
+        coverPath: uploadedFile.path,
+      },
+    });
+
+    // Delete previous cover after new cover is successfully saved
+    if (vendor.coverPath) {
+      await this.supabaseService.deleteFile(vendor.coverPath);
+    }
+
+    return {
+      message: 'Vendor cover uploaded successfully',
+      content: {
+        coverUrl: publicUrl,
+        coverPath: uploadedFile.path,
+      },
+    };
+  }
+
   // update vendor offer
   async updateVendorOffer(
     vendorId: number,
