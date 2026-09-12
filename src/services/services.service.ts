@@ -94,6 +94,7 @@ export class ServicesService {
         },
         include: {
           variations: true,
+          category: true,
         },
       }),
 
