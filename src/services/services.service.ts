@@ -141,10 +141,6 @@ export class ServicesService {
     updateServiceDto: UpdateServiceDto,
     file?: Express.Multer.File,
   ) {
-    if (!file) {
-      throw new BadRequestException('Service image is required');
-    }
-
     const existing = await this.prisma.service.findUnique({
       where: { id },
       select: { id: true, imagePath: true },
@@ -157,12 +153,18 @@ export class ServicesService {
     try {
       const { variations, ...serviceData } = updateServiceDto;
 
-      const filePath = `services/${id}-${Date.now()}-${file.originalname}`;
-      const uploadedFile = await this.supabaseService.uploadFile(
-        file,
-        filePath,
-      );
-      const imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+      let imageUrl: string | undefined;
+      let imagePath: string | undefined;
+
+      if (file) {
+        const filePath = `services/${id}-${Date.now()}-${file.originalname}`;
+        const uploadedFile = await this.supabaseService.uploadFile(
+          file,
+          filePath,
+        );
+        imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+        imagePath = uploadedFile.path;
+      }
 
       const service = await this.prisma.$transaction(async (tx) => {
         await tx.service.update({
@@ -171,8 +173,7 @@ export class ServicesService {
           },
           data: {
             ...serviceData,
-            imageUrl,
-            imagePath: uploadedFile.path,
+            ...(file ? { imageUrl, imagePath } : {}),
           },
         });
 
@@ -237,7 +238,7 @@ export class ServicesService {
         });
       });
 
-      if (existing.imagePath) {
+      if (file && existing.imagePath) {
         await this.supabaseService.deleteFile(existing.imagePath);
       }
 
