@@ -98,16 +98,19 @@ export class ServicesService {
             select: {
               id: true,
               name: true,
-              vendorCategories: {
+            },
+          },
+          vendorServices: {
+            where: {
+              isActive: true,
+            },
+            select: {
+              vendor: {
                 select: {
-                  vendor: {
-                    select: {
-                      userId: true,
-                      businessName: true,
-                      logoUrl: true,
-                      rating: true,
-                    },
-                  },
+                  userId: true,
+                  businessName: true,
+                  logoUrl: true,
+                  rating: true,
                 },
               },
             },
@@ -119,7 +122,7 @@ export class ServicesService {
     ]);
 
     return {
-      data: services.map((service) => this.attachCategoryVendors(service)),
+      data: services.map((service) => this.attachServiceVendors(service)),
       meta: {
         total,
         page,
@@ -143,16 +146,19 @@ export class ServicesService {
           select: {
             id: true,
             name: true,
-            vendorCategories: {
+          },
+        },
+        vendorServices: {
+          where: {
+            isActive: true,
+          },
+          select: {
+            vendor: {
               select: {
-                vendor: {
-                  select: {
-                    userId: true,
-                    businessName: true,
-                    logoUrl: true,
-                    rating: true,
-                  },
-                },
+                userId: true,
+                businessName: true,
+                logoUrl: true,
+                rating: true,
               },
             },
           },
@@ -166,27 +172,20 @@ export class ServicesService {
 
     return {
       message: 'Service found successfully',
-      content: this.attachCategoryVendors(service),
+      content: this.attachServiceVendors(service),
     };
   }
 
-  private attachCategoryVendors<
+  private attachServiceVendors<
     T extends {
-      category: {
-        id: number;
-        name: string;
-        vendorCategories: { vendor: object }[];
-      };
+      vendorServices: { vendor: object }[];
     },
   >(service: T) {
-    const { vendorCategories, ...category } = service.category;
+    const { vendorServices, ...rest } = service;
 
     return {
-      ...service,
-      category: {
-        ...category,
-        vendors: vendorCategories.map((vc) => vc.vendor),
-      },
+      ...rest,
+      vendors: vendorServices.map((vs) => vs.vendor),
     };
   }
 
