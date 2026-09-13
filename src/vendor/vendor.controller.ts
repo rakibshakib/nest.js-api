@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -50,6 +51,30 @@ export class VendorController {
   @Get()
   findAll(@QueryPagination() { page, limit }: Pagination) {
     return this.vendorService.findAll(page, limit);
+  }
+
+  @Get('for-customer')
+  findForCustomer(
+    @QueryPagination() { page, limit }: Pagination,
+    @Query('search') search?: string,
+    @Query('categoryId', new ParseIntPipe({ optional: true }))
+    categoryId?: number,
+    @Query('serviceId', new ParseIntPipe({ optional: true }))
+    serviceId?: number,
+    @Query('most_rated') mostRated?: string,
+    @Query('has_offer') hasOffer?: string,
+  ) {
+    return this.vendorService.findVendorsForCustomer(
+      {
+        search,
+        categoryId,
+        serviceId,
+        mostRated: mostRated === 'true',
+        hasOffer: hasOffer === 'true',
+      },
+      limit,
+      page,
+    );
   }
 
   @UseGuards(AuthenticationGuard)

@@ -9,8 +9,9 @@ import {
 } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 import { OfferType, UserType, VendorStatus } from 'generated/prisma/enums';
-import { CategoryService } from 'src/category/category.service';
+import { Prisma } from 'generated/prisma/client';
 import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
+import { CategoryService } from 'src/category/category.service';
 import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
 import { ServicesService } from 'src/services/services.service';
@@ -133,6 +134,102 @@ export class VendorService {
         },
       }),
       this.prisma.vendor.count(),
+    ]);
+
+    return {
+      data: vendors.map(({ user, ...vendor }) => ({
+        ...vendor,
+        name: user.name,
+        phone: user.phone,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findVendorsForCustomer(
+    filters: {
+      search?: string;
+      categoryId?: number;
+      serviceId?: number;
+      mostRated?: boolean;
+      hasOffer?: boolean;
+    },
+    limit: number,
+    page: number,
+  ) {
+    const skip = (page - 1) * limit;
+    const where: Prisma.VendorWhereInput = {
+      status: VendorStatus.APPROVED,
+      isActive: true,
+    };
+    const orderBy: Prisma.VendorOrderByWithRelationInput[] = [];
+
+    if (filters.search?.trim()) {
+      const search = filters.search.trim();
+      where.OR = [
+        { businessName: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filters.categoryId) {
+      where.vendorCategories = { some: { categoryId: filters.categoryId } };
+    }
+
+    if (filters.serviceId) {
+      where.vendorServices = {
+        some: { serviceId: filters.serviceId, isActive: true },
+      };
+    }
+
+    if (filters.hasOffer) {
+      where.vendorOffer = { isActive: true };
+    }
+
+    if (filters.mostRated) {
+      orderBy.push({ rating: 'desc' });
+    }
+
+    orderBy.push({ createdAt: 'desc' });
+
+    const [vendors, total] = await Promise.all([
+      this.prisma.vendor.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          userId: true,
+          businessName: true,
+          address: true,
+          status: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          rating: true,
+          responseTime: true,
+          logoUrl: true,
+          logoPath: true,
+          coverUrl: true,
+          coverPath: true,
+
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          vendorOffer: true,
+        },
+        orderBy,
+      }),
+
+      this.prisma.vendor.count({ where }),
     ]);
 
     return {
