@@ -349,6 +349,78 @@ export class ServicesService {
     }
   }
 
+  async findForCustomer(
+    filters: {
+      mostRated?: boolean;
+      mostOrdered?: boolean;
+      hasDiscount?: boolean;
+    },
+    limit: number,
+    page: number,
+  ) {
+    const skip = (page - 1) * limit;
+    const where: Prisma.ServiceWhereInput = { isActive: true };
+    const orderBy: Prisma.ServiceOrderByWithRelationInput[] = [];
+
+    if (filters.hasDiscount) {
+      orderBy.push({ discountAmount: 'desc' });
+    }
+
+    if (filters.mostRated) {
+      orderBy.push({ totalReviews: 'desc' }, { rating: 'desc' });
+    }
+
+    // mostOrdered ignored: no order module yet, same result either way
+    void filters.mostOrdered;
+
+    orderBy.push({ createdAt: 'desc' });
+
+    const [services, total] = await Promise.all([
+      this.prisma.service.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          variations: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          vendorServices: {
+            where: {
+              isActive: true,
+            },
+            select: {
+              vendor: {
+                select: {
+                  userId: true,
+                  businessName: true,
+                  logoUrl: true,
+                  rating: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      this.prisma.service.count({ where }),
+    ]);
+
+    return {
+      data: services.map((service) => this.attachServiceVendors(service)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
   async findServicesByCategory(
     categoryId: number,
     limit: number,
