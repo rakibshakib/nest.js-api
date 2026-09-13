@@ -94,7 +94,24 @@ export class ServicesService {
         },
         include: {
           variations: true,
-          category: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              vendorCategories: {
+                select: {
+                  vendor: {
+                    select: {
+                      userId: true,
+                      businessName: true,
+                      logoUrl: true,
+                      rating: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       }),
 
@@ -102,7 +119,7 @@ export class ServicesService {
     ]);
 
     return {
-      data: services,
+      data: services.map((service) => this.attachCategoryVendors(service)),
       meta: {
         total,
         page,
@@ -122,7 +139,24 @@ export class ServicesService {
       },
       include: {
         variations: true,
-        category: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            vendorCategories: {
+              select: {
+                vendor: {
+                  select: {
+                    userId: true,
+                    businessName: true,
+                    logoUrl: true,
+                    rating: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
 
@@ -132,7 +166,27 @@ export class ServicesService {
 
     return {
       message: 'Service found successfully',
-      content: service,
+      content: this.attachCategoryVendors(service),
+    };
+  }
+
+  private attachCategoryVendors<
+    T extends {
+      category: {
+        id: number;
+        name: string;
+        vendorCategories: { vendor: object }[];
+      };
+    },
+  >(service: T) {
+    const { vendorCategories, ...category } = service.category;
+
+    return {
+      ...service,
+      category: {
+        ...category,
+        vendors: vendorCategories.map((vc) => vc.vendor),
+      },
     };
   }
 
