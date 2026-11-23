@@ -8,10 +8,12 @@ import {
   IsPositive,
   ValidateNested,
 } from 'class-validator';
+import { JsonArray, ToBoolean, ToNumber } from 'src/common/decorators';
 import { CreateServiceDto, ServiceVariationDto } from './create-service.dto';
 
 export class UpdateServiceVariantDto extends ServiceVariationDto {
   @IsOptional()
+  @ToNumber()
   @IsInt()
   @IsPositive()
   id?: number;
@@ -21,6 +23,7 @@ export class UpdateServiceDto extends PartialType(
   OmitType(CreateServiceDto, ['variations'] as const),
 ) {
   @IsOptional()
+  @JsonArray()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => UpdateServiceVariantDto)
@@ -28,6 +31,7 @@ export class UpdateServiceDto extends PartialType(
 }
 
 export class UpdateServiceStatusDto {
+  @ToBoolean()
   @IsBoolean()
   isActive: boolean;
 }

@@ -1,23 +1,25 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
   ParseIntPipe,
   Patch,
   Post,
-  Query,
-  Request,
   Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import { UserType } from 'generated/prisma/enums';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
 import { AdminGuard } from 'src/auth/authAdmin.guard';
+import { CurrentUser, QueryPagination } from 'src/common/decorators';
+import { imageUploadOptions } from 'src/common/upload/image-upload.util';
 import { CustomerGuard } from './customer.guard';
 import { CustomerService } from './customer.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
@@ -27,7 +29,7 @@ import {
 } from './dto/update-customer.dto';
 
 @ApiBearerAuth()
-@Controller('api/customer')
+@Controller('customer')
 export class CustomerController {
   constructor(private readonly customerService: CustomerService) {}
 
@@ -53,10 +55,7 @@ export class CustomerController {
 
   @UseGuards(AuthenticationGuard, AdminGuard)
   @Get()
-  findAll(
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-  ) {
+  findAll(@QueryPagination() { page, limit }: { page: number; limit: number }) {
     return this.customerService.findAll(limit, page);
   }
 
@@ -64,9 +63,9 @@ export class CustomerController {
   @Get(':id')
   findOne(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.customerService.findOne(id, req.user);
+    return this.customerService.findOne(id, user);
   }
 
   @UseGuards(AuthenticationGuard, CustomerGuard)
@@ -74,18 +73,18 @@ export class CustomerController {
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCustomerDto: UpdateCustomerDto,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.customerService.update(id, updateCustomerDto, req.user);
+    return this.customerService.update(id, updateCustomerDto, user);
   }
 
   @UseGuards(AuthenticationGuard)
   @Delete(':id')
   remove(
     @Param('id', ParseIntPipe) id: number,
-    @Request() req: { user: { sub: number; userType: UserType } },
+    @CurrentUser() user: { sub: number; userType: UserType },
   ) {
-    return this.customerService.remove(id, req.user);
+    return this.customerService.remove(id, user);
   }
 
   // toggle customer status to disabled or active
@@ -96,5 +95,25 @@ export class CustomerController {
     @Body() dto: updateCustomerStatusDto,
   ) {
     return this.customerService.updateStatus(id, dto);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Patch(':id/image')
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
+  uploadImage(
+    @Param('id', ParseIntPipe) id: number,
+    @UploadedFile() file: Express.Multer.File,
+    @CurrentUser() user: { sub: number; userType: UserType },
+  ) {
+    return this.customerService.uploadImage(id, file, user);
+  }
+
+  @UseGuards(AuthenticationGuard)
+  @Delete(':id/image')
+  removeImage(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: { sub: number; userType: UserType },
+  ) {
+    return this.customerService.removeImage(id, user);
   }
 }

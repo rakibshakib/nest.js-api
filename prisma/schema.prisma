@@ -39,7 +39,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 model User {
@@ -97,6 +97,7 @@ model Vendor {
   updatedAt        DateTime         @updatedAt
   vendorCategories VendorCategory[]
   vendorServices   VendorService[]
+  vendorOffer      VendorOffer?
 }
 
 model Customer {
@@ -104,7 +105,11 @@ model Customer {
 
   address  String?
   isActive Boolean @default(true)
-  user     User    @relation(fields: [userId], references: [id])
+
+  imageUrl  String?
+  imagePath String?
+
+  user User @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -115,6 +120,9 @@ model Category {
   name        String  @unique
   description String?
   isActive    Boolean @default(true)
+
+  imageUrl  String?
+  imagePath String?
 
   createdById Int
   createdBy   User @relation(fields: [createdById], references: [id])
@@ -153,6 +161,9 @@ model Service {
   name             String
   shortDescription String?
   description      String? @db.Text
+
+  imageUrl  String?
+  imagePath String?
 
   basePrice Decimal @db.Decimal(10, 2)
 
@@ -201,4 +212,33 @@ model VendorService {
   updatedAt DateTime @updatedAt
 
   @@id([vendorId, serviceId])
+}
+
+enum OfferType {
+  TEXT
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model VendorOffer {
+  id Int @id @default(autoincrement())
+
+  vendorId Int    @unique
+  vendor   Vendor @relation(fields: [vendorId], references: [userId], onDelete: Cascade)
+
+  type OfferType
+
+  title       String?
+  description String?
+
+  value Decimal? @db.Decimal(10, 2)
+
+  startDate     DateTime
+  hasExpireDate Boolean   @default(false)
+  endDate       DateTime?
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

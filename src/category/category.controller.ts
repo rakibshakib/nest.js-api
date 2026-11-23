@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   Param,
@@ -9,11 +8,16 @@ import {
   Patch,
   Post,
   Query,
-  Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { AuthenticationGuard } from 'src/auth/auth.guard';
+import { AdminGuard } from 'src/auth/authAdmin.guard';
+import { CurrentUser, QueryPagination } from 'src/common/decorators';
+import { imageUploadOptions } from 'src/common/upload/image-upload.util';
 import { CategoryService } from './category.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
@@ -22,26 +26,35 @@ import {
 } from './dto/update-category.dto';
 
 @ApiBearerAuth()
-@UseGuards(AuthenticationGuard)
-@Controller('api/category')
+@Controller('category')
 export class CategoryController {
   constructor(private readonly categoryService: CategoryService) {}
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Post()
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
   create(
     @Body() createCategoryDto: CreateCategoryDto,
-    @Request() req: { user: { sub: number; email: string } },
+    @CurrentUser() user: { sub: number; email: string },
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.categoryService.create(createCategoryDto, req.user);
+    return this.categoryService.create(createCategoryDto, user, file);
   }
 
   @Get()
   findAll(
-    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('all_services', new DefaultValuePipe(false)) all_services: boolean,
+    @QueryPagination() { page, limit }: { page: number; limit: number },
+    @Query('all_services') all_services?: string,
   ) {
-    return this.categoryService.findAll(limit, page, all_services);
+    return this.categoryService.findAll(limit, page, all_services === 'true');
+  }
+
+  @Get('drop-down')
+  findForDropdown(
+    @Query('isActive') isActive?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.categoryService.findForDropdown(isActive, search);
   }
 
   @Get(':id')
@@ -49,14 +62,34 @@ export class CategoryController {
     return this.categoryService.findOne(id);
   }
 
+  @Get(':id/services')
+  findServicesByCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @QueryPagination() { page, limit }: { page: number; limit: number },
+  ) {
+    return this.categoryService.findServicesByCategory(id, limit, page);
+  }
+
+  @Get(':id/vendors')
+  findVendorsByCategory(
+    @Param('id', ParseIntPipe) id: number,
+    @QueryPagination() { page, limit }: { page: number; limit: number },
+  ) {
+    return this.categoryService.findVendorsByCategory(id, limit, page);
+  }
+
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Patch(':id')
+  @UseInterceptors(FileInterceptor('image', imageUploadOptions()))
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateCategoryDto: UpdateCategoryDto,
+    @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.categoryService.update(id, updateCategoryDto);
+    return this.categoryService.update(id, updateCategoryDto, file);
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Patch(':id/status')
   updateStatus(
     @Param('id', ParseIntPipe) id: number,
@@ -65,6 +98,7 @@ export class CategoryController {
     return this.categoryService.updateStatus(id, updateCategoryStatusDto);
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.categoryService.remove(id);

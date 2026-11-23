@@ -2,13 +2,15 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import bcrypt from 'bcrypt';
-import { UserType, VendorStatus } from 'generated/prisma/enums';
+import { OfferType, UserType, VendorStatus } from 'generated/prisma/enums';
+import { Prisma } from 'generated/prisma/client';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
 import { CategoryService } from 'src/category/category.service';
 import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
@@ -22,7 +24,9 @@ import {
   ToggleVendorServiceDto,
   UpdateVendorApprovalDto,
   UpdateVendorDto,
+  UpdateVendorOfferStatusDto,
   UpdateVendorStatusDto,
+  VendorOfferDto,
 } from './dto/update-vendor.dto';
 
 @Injectable()
@@ -30,6 +34,7 @@ export class VendorService {
   constructor(
     private readonly userService: UserService,
     private readonly serviceService: ServicesService,
+    @Inject(forwardRef(() => CategoryService))
     private readonly categoryService: CategoryService,
     private readonly prisma: PrismaService,
     private readonly supabaseService: SupabaseService,
@@ -95,39 +100,205 @@ export class VendorService {
     };
   }
 
-  async findAll() {
-    const vendors = await this.prisma.vendor.findMany({
-      select: {
-        userId: true,
-        businessName: true,
-        address: true,
-        status: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        rating: true,
-        responseTime: true,
-        logoUrl: true,
-        logoPath: true,
+  async findAll(page: number, limit: number) {
+    const skip = (page - 1) * limit;
 
-        user: {
-          select: {
-            name: true,
-            email: true,
-            phone: true,
+    const [vendors, total] = await Promise.all([
+      this.prisma.vendor.findMany({
+        skip,
+        take: limit,
+        select: {
+          userId: true,
+          businessName: true,
+          address: true,
+          status: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          rating: true,
+          responseTime: true,
+          logoUrl: true,
+          logoPath: true,
+
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
           },
+          vendorOffer: true,
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+      this.prisma.vendor.count(),
+    ]);
 
-    return vendors.map(({ user, ...vendor }) => ({
-      ...vendor,
-      name: user.name,
-      phone: user.phone,
-    }));
+    return {
+      data: vendors.map(({ user, ...vendor }) => ({
+        ...vendor,
+        name: user.name,
+        phone: user.phone,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findVendorsForCustomer(
+    filters: {
+      search?: string;
+      categoryId?: number;
+      serviceId?: number;
+      mostRated?: boolean;
+      hasOffer?: boolean;
+    },
+    limit: number,
+    page: number,
+  ) {
+    const skip = (page - 1) * limit;
+    const where: Prisma.VendorWhereInput = {
+      status: VendorStatus.APPROVED,
+      isActive: true,
+    };
+    const orderBy: Prisma.VendorOrderByWithRelationInput[] = [];
+
+    if (filters.search?.trim()) {
+      const search = filters.search.trim();
+      where.OR = [
+        { businessName: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filters.categoryId) {
+      where.vendorCategories = { some: { categoryId: filters.categoryId } };
+    }
+
+    if (filters.serviceId) {
+      where.vendorServices = {
+        some: { serviceId: filters.serviceId, isActive: true },
+      };
+    }
+
+    if (filters.hasOffer) {
+      where.vendorOffer = { isActive: true };
+    }
+
+    if (filters.mostRated) {
+      orderBy.push({ rating: 'desc' });
+    }
+
+    orderBy.push({ createdAt: 'desc' });
+
+    const [vendors, total] = await Promise.all([
+      this.prisma.vendor.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          userId: true,
+          businessName: true,
+          address: true,
+          status: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          rating: true,
+          responseTime: true,
+          logoUrl: true,
+          logoPath: true,
+          coverUrl: true,
+          coverPath: true,
+
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          vendorOffer: true,
+        },
+        orderBy,
+      }),
+
+      this.prisma.vendor.count({ where }),
+    ]);
+
+    return {
+      data: vendors.map(({ user, ...vendor }) => ({
+        ...vendor,
+        name: user.name,
+        phone: user.phone,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findVendorsByCategory(categoryId: number, limit: number, page: number) {
+    const skip = (page - 1) * limit;
+    const where = { vendorCategories: { some: { categoryId } } };
+
+    const [vendors, total] = await Promise.all([
+      this.prisma.vendor.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          userId: true,
+          businessName: true,
+          address: true,
+          status: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          rating: true,
+          responseTime: true,
+          logoUrl: true,
+          logoPath: true,
+
+          user: {
+            select: {
+              name: true,
+              email: true,
+              phone: true,
+            },
+          },
+          vendorOffer: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      }),
+
+      this.prisma.vendor.count({ where }),
+    ]);
+
+    return {
+      data: vendors.map(({ user, ...vendor }) => ({
+        ...vendor,
+        name: user.name,
+        phone: user.phone,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: number) {
@@ -147,6 +318,7 @@ export class VendorService {
             category: true,
           },
         },
+        vendorOffer: true,
       },
     });
 
@@ -234,14 +406,10 @@ export class VendorService {
         message: 'Vendor updated successfully',
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException('Failed to update vendor');
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to update vendor',
+      });
     }
   }
 
@@ -264,14 +432,10 @@ export class VendorService {
         content: result,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException('Failed to delete vendor');
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to delete vendor',
+      });
     }
   }
 
@@ -293,16 +457,10 @@ export class VendorService {
         content: vendor,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException(
-        'Failed to update vendor approval status',
-      );
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to update vendor approval status',
+      });
     }
   }
 
@@ -322,14 +480,10 @@ export class VendorService {
         content: vendor,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Vendor not found');
-      }
-
-      throw new InternalServerErrorException('Failed to update vendor status');
+      handlePrismaError(error, {
+        p2025: 'Vendor not found',
+        default: 'Failed to update vendor status',
+      });
     }
   }
 
@@ -343,8 +497,6 @@ export class VendorService {
     }
 
     const categoryIds = [...new Set(dto.categoryIds)];
-
-    console.log({ categoryIds });
 
     if (!categoryIds.length) {
       throw new BadRequestException('At least one category is required');
@@ -378,7 +530,6 @@ export class VendorService {
         categoryIds,
         tx,
       );
-      console.log({ services });
       const serviceIds = services.map((service) => service.id);
 
       // Remove services that are no longer part of selected categories
@@ -430,7 +581,7 @@ export class VendorService {
   }
 
   // find all categories wise all service for a vendor
-  async findAllProvidedServices(vendorId: number) {
+  async findAllProvidedServices(vendorId: number, page: number, limit: number) {
     const vendor = await this.prisma.vendor.findUnique({
       where: {
         userId: vendorId,
@@ -441,7 +592,7 @@ export class VendorService {
       throw new NotFoundException('Vendor not found');
     }
 
-    const services = await this.prisma.vendorService.findMany({
+    const vendorServices = await this.prisma.vendorService.findMany({
       where: {
         vendorId,
         service: {
@@ -454,6 +605,8 @@ export class VendorService {
             id: true,
             name: true,
             description: true,
+            imageUrl: true,
+            imagePath: true,
             category: {
               select: {
                 id: true,
@@ -466,19 +619,28 @@ export class VendorService {
       },
     });
 
-    type Service = (typeof services)[number]['service'];
-    type Category = Service['category'];
+    type ServiceCategory = {
+      id: number;
+      name: string;
+    };
+
+    type ProvidedService = {
+      id: number;
+      name: string;
+      description: string | null;
+      imageUrl: string | null;
+      imagePath: string | null;
+      isActive: boolean;
+    };
 
     type GroupedService = {
-      category: Category;
-      services: (Omit<Service, 'category'> & {
-        isActive: boolean;
-      })[];
+      category: ServiceCategory;
+      services: ProvidedService[];
     };
 
     const groupedServices = Object.values(
-      services.reduce<Record<number, GroupedService>>((acc, vendorService) => {
-        const { category, ...service } = vendorService.service;
+      vendorServices.reduce<Record<number, GroupedService>>((acc, vs) => {
+        const { category, ...service } = vs.service;
 
         if (!acc[category.id]) {
           acc[category.id] = {
@@ -489,16 +651,24 @@ export class VendorService {
 
         acc[category.id].services.push({
           ...service,
-          isActive: vendorService?.isActive ?? false,
+          isActive: vs.isActive,
         });
 
         return acc;
       }, {}),
     );
 
+    const total = groupedServices.length;
+    const skip = (page - 1) * limit;
+
     return {
-      message: 'Vendor services fetched successfully',
-      content: groupedServices,
+      data: groupedServices.slice(skip, skip + limit),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
@@ -509,7 +679,6 @@ export class VendorService {
     if (!dto) {
       throw new BadRequestException('service list is required');
     }
-    console.log({ dto });
     const activeServiceIds = dto.activeServicesId ?? [];
     const inactiveServiceIds = dto.inActiveServicesId ?? [];
 
@@ -561,14 +730,25 @@ export class VendorService {
       return {
         message: 'Vendor service status updated successfully',
       };
-    } catch {
-      throw new InternalServerErrorException(
-        'Failed to update vendor service status',
-      );
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        default: 'Failed to update vendor service status',
+      });
     }
   }
 
-  async uploadLogo(id: number, file: Express.Multer.File) {
+  async uploadLogo(
+    id: number,
+    file: Express.Multer.File,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
+
     if (!file) {
       throw new BadRequestException('Logo image is required');
     }
@@ -616,5 +796,257 @@ export class VendorService {
         logoPath: uploadedFile.path,
       },
     };
+  }
+
+  async uploadCover(
+    id: number,
+    file: Express.Multer.File,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === id;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException('You are not allowed to update this vendor');
+    }
+
+    if (!file) {
+      throw new BadRequestException('Cover image is required');
+    }
+
+    const vendor = await this.prisma.vendor.findUnique({
+      where: {
+        userId: id,
+      },
+      select: {
+        userId: true,
+        coverPath: true,
+      },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    // upload file
+    const filePath = `vendors/${id}/cover-${Date.now()}`;
+
+    const uploadedFile = await this.supabaseService.uploadFile(file, filePath);
+
+    const publicUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+
+    await this.prisma.vendor.update({
+      where: {
+        userId: id,
+      },
+      data: {
+        coverUrl: publicUrl,
+        coverPath: uploadedFile.path,
+      },
+    });
+
+    // Delete previous cover after new cover is successfully saved
+    if (vendor.coverPath) {
+      await this.supabaseService.deleteFile(vendor.coverPath);
+    }
+
+    return {
+      message: 'Vendor cover uploaded successfully',
+      content: {
+        coverUrl: publicUrl,
+        coverPath: uploadedFile.path,
+      },
+    };
+  }
+
+  // update vendor offer
+  async updateVendorOffer(
+    vendorId: number,
+    dto: VendorOfferDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    if (!dto || Object.keys(dto).length === 0) {
+      throw new BadRequestException('Offer data is required');
+    }
+
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === vendorId;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to manage this vendor offer',
+      );
+    }
+
+    // Required fields for creating an offer
+    if (!dto.type || !dto.startDate || dto.hasExpireDate === undefined) {
+      throw new BadRequestException(
+        'Type, start date and hasExpireDate are required',
+      );
+    }
+
+    const offerData = {
+      type: dto.type,
+      title: dto.type === OfferType.TEXT ? dto.title : '',
+      description: dto.description ?? null,
+      value: dto.type === OfferType.TEXT ? null : (dto.value ?? null),
+      startDate: new Date(dto.startDate),
+      hasExpireDate: dto.hasExpireDate,
+      endDate: dto.hasExpireDate
+        ? dto.endDate
+          ? new Date(dto.endDate)
+          : null
+        : null,
+      isActive: dto.isActive ?? true,
+    };
+
+    // Business validation
+    this.validateOfferData(offerData);
+
+    // Delete old offer and create new offer
+    const offer = await this.prisma.$transaction(async (tx) => {
+      await tx.vendorOffer.deleteMany({
+        where: {
+          vendorId,
+        },
+      });
+
+      return tx.vendorOffer.create({
+        data: {
+          vendorId,
+          ...offerData,
+        },
+      });
+    });
+
+    return {
+      message: 'Vendor offer updated successfully',
+      content: offer,
+    };
+  }
+
+  async deleteVendorOffer(
+    vendorId: number,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === vendorId;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to delete this vendor offer',
+      );
+    }
+
+    await this.prisma.vendorOffer.deleteMany({
+      where: {
+        vendorId,
+      },
+    });
+
+    return {
+      message: 'Vendor offer deleted successfully',
+    };
+  }
+
+  async updateVendorOfferStatus(
+    vendorId: number,
+    dto: UpdateVendorOfferStatusDto,
+    user: { sub: number; userType: UserType },
+  ) {
+    const isAdmin = user.userType === UserType.ADMIN;
+    const isOwner = user.sub === vendorId;
+
+    if (!isAdmin && !isOwner) {
+      throw new ForbiddenException(
+        'You are not allowed to update this vendor offer status',
+      );
+    }
+    try {
+      const offer = await this.prisma.vendorOffer.update({
+        where: {
+          vendorId,
+        },
+        data: {
+          isActive: dto.isActive,
+        },
+      });
+
+      return {
+        message: 'Vendor offer status updated successfully',
+        content: offer,
+      };
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        p2025: 'Vendor offer not found',
+        default: 'Failed to update vendor offer status',
+      });
+    }
+  }
+
+  private validateOfferData(data: {
+    type: OfferType;
+    title?: string | null;
+    description?: string | null;
+    value?: number | null;
+    startDate: Date;
+    hasExpireDate: boolean;
+    endDate?: Date | null;
+    isActive: boolean;
+  }) {
+    // TEXT
+    if (data.type === OfferType.TEXT) {
+      if (!data.title?.trim()) {
+        throw new BadRequestException('Title is required for text offer');
+      }
+
+      if (data.value !== null && data.value !== undefined) {
+        throw new BadRequestException('Value is not allowed for text offer');
+      }
+    }
+
+    // PERCENTAGE
+    if (data.type === OfferType.PERCENTAGE) {
+      if (data.value === null || data.value === undefined) {
+        throw new BadRequestException('Value is required for percentage offer');
+      }
+
+      if (data.value <= 0 || data.value > 100) {
+        throw new BadRequestException(
+          'Percentage value must be between 1 and 100',
+        );
+      }
+    }
+
+    // FIXED AMOUNT
+    if (data.type === OfferType.FIXED_AMOUNT) {
+      if (data.value === null || data.value === undefined) {
+        throw new BadRequestException(
+          'Value is required for fixed amount offer',
+        );
+      }
+
+      if (data.value <= 0) {
+        throw new BadRequestException('Fixed amount must be greater than 0');
+      }
+    }
+
+    // EXPIRY
+    if (data.hasExpireDate && !data.endDate) {
+      throw new BadRequestException(
+        'End date is required when expiry date is enabled',
+      );
+    }
+
+    if (!data.hasExpireDate && data.endDate) {
+      throw new BadRequestException(
+        'End date should not be provided for a lifetime offer',
+      );
+    }
+
+    // DATE RANGE
+    if (data.hasExpireDate && data.endDate && data.endDate <= data.startDate) {
+      throw new BadRequestException('End date must be greater than start date');
+    }
   }
 }

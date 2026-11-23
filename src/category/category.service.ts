@@ -1,11 +1,15 @@
 import {
-  ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
+import { Prisma } from 'generated/prisma/client';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
+import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
+import { ServicesService } from 'src/services/services.service';
+import { VendorService } from 'src/vendor/vendor.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import {
   UpdateCategoryDto,
@@ -14,19 +18,41 @@ import {
 
 @Injectable()
 export class CategoryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
+    private readonly servicesService: ServicesService,
+    @Inject(forwardRef(() => VendorService))
+    private readonly vendorService: VendorService,
+  ) {}
 
   async create(
     createCategoryDto: CreateCategoryDto,
     user: { sub: number; email: string },
+    file?: Express.Multer.File,
   ) {
     try {
+      let imageUrl: string | undefined;
+      let imagePath: string | undefined;
+
+      if (file) {
+        const filePath = `categories/${Date.now()}-${file.originalname}`;
+        const uploadedFile = await this.supabaseService.uploadFile(
+          file,
+          filePath,
+        );
+        imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+        imagePath = uploadedFile.path;
+      }
+
       const category = await this.prisma.category.create({
         data: {
           name: createCategoryDto.name,
           description: createCategoryDto.description,
           isActive: createCategoryDto.isActive ?? true,
           createdById: user.sub,
+          imageUrl,
+          imagePath,
         },
       });
 
@@ -35,14 +61,10 @@ export class CategoryService {
         content: category,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Category name already exists');
-      }
-
-      throw new InternalServerErrorException('Failed to create category');
+      handlePrismaError(error, {
+        p2002: 'Category name already exists',
+        default: 'Failed to create category',
+      });
     }
   }
 
@@ -59,6 +81,12 @@ export class CategoryService {
         skip,
         include: {
           services: Boolean(all_services),
+          _count: {
+            select: {
+              services: true,
+              vendorCategories: true,
+            },
+          },
         },
       }),
 
@@ -68,13 +96,68 @@ export class CategoryService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      data: categories,
+      data: categories.map(({ _count, ...category }) => ({
+        ...category,
+        totalServices: _count.services,
+        totalVendors: _count.vendorCategories,
+      })),
       meta: {
         total,
         page,
         limit,
         totalPages,
       },
+    };
+  }
+
+  async findServicesByCategory(id: number, limit: number, page: number) {
+    await this.ensureExists(id);
+    return this.servicesService.findServicesByCategory(id, limit, page);
+  }
+
+  async findVendorsByCategory(id: number, limit: number, page: number) {
+    await this.ensureExists(id);
+    return this.vendorService.findVendorsByCategory(id, limit, page);
+  }
+
+  private async ensureExists(id: number) {
+    const category = await this.prisma.category.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+  }
+
+  async findForDropdown(isActive?: string, search?: string) {
+    const where: Prisma.CategoryWhereInput = {};
+
+    if (isActive === 'true') {
+      where.isActive = true;
+    } else if (isActive === 'false') {
+      where.isActive = false;
+    }
+
+    if (search?.trim()) {
+      where.name = { contains: search.trim(), mode: 'insensitive' };
+    }
+
+    const categories = await this.prisma.category.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: 10,
+    });
+
+    return {
+      data: categories,
     };
   }
 
@@ -100,44 +183,80 @@ export class CategoryService {
       },
       include: {
         services: true,
+        _count: {
+          select: {
+            services: true,
+            vendorCategories: true,
+          },
+        },
       },
     });
 
     if (!category) {
       throw new NotFoundException('Category not found');
     }
-    return category;
+
+    const { _count, ...rest } = category;
+
+    return {
+      ...rest,
+      totalServices: _count.services,
+      totalVendors: _count.vendorCategories,
+    };
   }
 
-  async update(id: number, updateCategoryDto: UpdateCategoryDto) {
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto,
+    file?: Express.Multer.File,
+  ) {
+    const existing = await this.prisma.category.findUnique({
+      where: { id },
+      select: { id: true, imagePath: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Category not found');
+    }
+
     try {
+      let imageUrl: string | undefined;
+      let imagePath: string | undefined;
+
+      if (file) {
+        const filePath = `categories/${id}-${Date.now()}-${file.originalname}`;
+        const uploadedFile = await this.supabaseService.uploadFile(
+          file,
+          filePath,
+        );
+        imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+        imagePath = uploadedFile.path;
+      }
+
       const updatedCategory = await this.prisma.category.update({
         where: {
           id,
         },
-        data: updateCategoryDto,
+        data: {
+          ...updateCategoryDto,
+          ...(file ? { imageUrl, imagePath } : {}),
+        },
       });
+
+      if (file && existing.imagePath) {
+        await this.supabaseService.deleteFile(existing.imagePath);
+      }
 
       return {
         message: 'Category updated successfully',
         content: updatedCategory,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2002'
-      ) {
-        throw new ConflictException('Category name already exists');
-      }
-
-      throw new InternalServerErrorException('Failed to update category');
+      handlePrismaError(error, {
+        p2025: 'Category not found',
+        p2002: 'Category name already exists',
+        default: 'Failed to update category',
+      });
     }
   }
 
@@ -160,16 +279,10 @@ export class CategoryService {
         content: updatedCategory,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException(
-        'Failed to update category status',
-      );
+      handlePrismaError(error, {
+        p2025: 'Category not found',
+        default: 'Failed to update category status',
+      });
     }
   }
 
@@ -186,14 +299,10 @@ export class CategoryService {
         content: deletedCategory,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException('Failed to delete category');
+      handlePrismaError(error, {
+        p2025: 'Category not found',
+        default: 'Failed to delete category',
+      });
     }
   }
 }

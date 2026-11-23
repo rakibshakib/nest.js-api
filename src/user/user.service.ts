@@ -9,15 +9,15 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
   async getUserByEmail(email: string) {
     const user = await this.prisma.user.findFirst({
-      where: { email },
+      where: { email: { equals: email, mode: 'insensitive' } },
     });
     return user;
   }
 
   async getUserForLogin(email: string) {
-    return this.prisma.user.findUnique({
+    return this.prisma.user.findFirst({
       where: {
-        email,
+        email: { equals: email, mode: 'insensitive' },
       },
       include: {
         vendor: true,
@@ -28,8 +28,8 @@ export class UserService {
   }
 
   async getUserInfoByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
+    return this.prisma.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
       select: {
         id: true,
         email: true,

@@ -1,12 +1,16 @@
 import { IsArray, IsBoolean, IsEnum, IsInt } from 'class-validator';
-import { VendorStatus } from 'generated/prisma/enums';
+import { OfferType, VendorStatus } from 'generated/prisma/enums';
 
 import {
+  IsDateString,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   IsStrongPassword,
+  ValidateIf,
 } from 'class-validator';
+import { EmptyToUndefined } from 'src/common/decorators';
 
 export class UpdateVendorDto {
   @IsOptional()
@@ -56,4 +60,47 @@ export class ToggleVendorServiceDto {
   @IsInt({ each: true })
   @IsOptional()
   inActiveServicesId?: number[];
+}
+
+export class VendorOfferDto {
+  @IsEnum(OfferType)
+  @IsOptional()
+  type?: OfferType;
+
+  @ValidateIf((o: VendorOfferDto) => o.type === OfferType.TEXT)
+  @IsString()
+  @IsNotEmpty()
+  @IsOptional()
+  title?: string;
+
+  @IsString()
+  @IsOptional()
+  description?: string;
+
+  @IsNumber()
+  @IsOptional()
+  value?: number;
+
+  @EmptyToUndefined()
+  @IsDateString()
+  @IsOptional()
+  startDate?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  hasExpireDate?: boolean;
+
+  @EmptyToUndefined()
+  @IsDateString()
+  @IsOptional()
+  endDate?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
+}
+
+export class UpdateVendorOfferStatusDto {
+  @IsBoolean()
+  isActive: boolean;
 }

@@ -1,10 +1,11 @@
 import {
+  BadRequestException,
   Injectable,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { Prisma } from 'generated/prisma/client';
+import { handlePrismaError } from 'src/common/prisma/prisma-error.util';
+import { SupabaseService } from 'src/common/supabase/supabase.service';
 import { PrismaService } from 'src/prisma.service';
 import { CreateServiceDto } from './dto/create-service.dto';
 import {
@@ -15,11 +16,29 @@ import {
 
 @Injectable()
 export class ServicesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseService: SupabaseService,
+  ) {}
 
-  async create(createServiceDto: CreateServiceDto, userId: number) {
+  async create(
+    createServiceDto: CreateServiceDto,
+    userId: number,
+    file?: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Service image is required');
+    }
+
     try {
       const { variations, ...serviceData } = createServiceDto;
+
+      const filePath = `services/${Date.now()}-${file.originalname}`;
+      const uploadedFile = await this.supabaseService.uploadFile(
+        file,
+        filePath,
+      );
+      const imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
 
       const service = await this.prisma.$transaction(async (tx) => {
         const newService = await tx.service.create({
@@ -29,6 +48,8 @@ export class ServicesService {
             totalReviews: 0,
             isActive: true,
             createdById: userId,
+            imageUrl,
+            imagePath: uploadedFile.path,
           },
         });
 
@@ -54,8 +75,10 @@ export class ServicesService {
         message: 'Service created successfully',
         content: service,
       };
-    } catch {
-      throw new InternalServerErrorException('Failed to create service');
+    } catch (error: unknown) {
+      handlePrismaError(error, {
+        default: 'Failed to create service',
+      });
     }
   }
 
@@ -71,6 +94,27 @@ export class ServicesService {
         },
         include: {
           variations: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          vendorServices: {
+            where: {
+              isActive: true,
+            },
+            select: {
+              vendor: {
+                select: {
+                  userId: true,
+                  businessName: true,
+                  logoUrl: true,
+                  rating: true,
+                },
+              },
+            },
+          },
         },
       }),
 
@@ -78,7 +122,7 @@ export class ServicesService {
     ]);
 
     return {
-      data: services,
+      data: services.map((service) => this.attachServiceVendors(service)),
       meta: {
         total,
         page,
@@ -98,7 +142,27 @@ export class ServicesService {
       },
       include: {
         variations: true,
-        category: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        vendorServices: {
+          where: {
+            isActive: true,
+          },
+          select: {
+            vendor: {
+              select: {
+                userId: true,
+                businessName: true,
+                logoUrl: true,
+                rating: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -108,13 +172,52 @@ export class ServicesService {
 
     return {
       message: 'Service found successfully',
-      content: service,
+      content: this.attachServiceVendors(service),
     };
   }
 
-  async update(id: number, updateServiceDto: UpdateServiceDto) {
+  private attachServiceVendors<
+    T extends {
+      vendorServices: { vendor: object }[];
+    },
+  >(service: T) {
+    const { vendorServices, ...rest } = service;
+
+    return {
+      ...rest,
+      vendors: vendorServices.map((vs) => vs.vendor),
+    };
+  }
+
+  async update(
+    id: number,
+    updateServiceDto: UpdateServiceDto,
+    file?: Express.Multer.File,
+  ) {
+    const existing = await this.prisma.service.findUnique({
+      where: { id },
+      select: { id: true, imagePath: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Service not found');
+    }
+
     try {
       const { variations, ...serviceData } = updateServiceDto;
+
+      let imageUrl: string | undefined;
+      let imagePath: string | undefined;
+
+      if (file) {
+        const filePath = `services/${id}-${Date.now()}-${file.originalname}`;
+        const uploadedFile = await this.supabaseService.uploadFile(
+          file,
+          filePath,
+        );
+        imageUrl = this.supabaseService.getPublicUrl(uploadedFile.path);
+        imagePath = uploadedFile.path;
+      }
 
       const service = await this.prisma.$transaction(async (tx) => {
         await tx.service.update({
@@ -123,6 +226,7 @@ export class ServicesService {
           },
           data: {
             ...serviceData,
+            ...(file ? { imageUrl, imagePath } : {}),
           },
         });
 
@@ -186,19 +290,20 @@ export class ServicesService {
           },
         });
       });
+
+      if (file && existing.imagePath) {
+        await this.supabaseService.deleteFile(existing.imagePath);
+      }
+
       return {
         message: 'Service updated successfully',
         content: service,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Service not found');
-      }
-
-      throw new InternalServerErrorException('Failed to update service');
+      handlePrismaError(error, {
+        p2025: 'Service not found',
+        default: 'Failed to update service',
+      });
     }
   }
 
@@ -211,17 +316,13 @@ export class ServicesService {
       });
 
       return {
-        message: 'Category deleted successfully',
+        message: 'Service deleted successfully',
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException('Failed to delete category');
+      handlePrismaError(error, {
+        p2025: 'Service not found',
+        default: 'Failed to delete service',
+      });
     }
   }
 
@@ -237,21 +338,122 @@ export class ServicesService {
       });
 
       return {
-        message: 'Category status updated successfully',
+        message: 'Service status updated successfully',
         content: updated,
       };
     } catch (error: unknown) {
-      if (
-        error instanceof PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException('Category not found');
-      }
-
-      throw new InternalServerErrorException(
-        'Failed to update category status',
-      );
+      handlePrismaError(error, {
+        p2025: 'Service not found',
+        default: 'Failed to update service status',
+      });
     }
+  }
+
+  async findForCustomer(
+    filters: {
+      mostRated?: boolean;
+      mostOrdered?: boolean;
+      hasDiscount?: boolean;
+    },
+    limit: number,
+    page: number,
+  ) {
+    const skip = (page - 1) * limit;
+    const where: Prisma.ServiceWhereInput = { isActive: true };
+    const orderBy: Prisma.ServiceOrderByWithRelationInput[] = [];
+
+    if (filters.hasDiscount) {
+      orderBy.push({ discountAmount: 'desc' });
+    }
+
+    if (filters.mostRated) {
+      orderBy.push({ totalReviews: 'desc' }, { rating: 'desc' });
+    }
+
+    // mostOrdered ignored: no order module yet, same result either way
+    void filters.mostOrdered;
+
+    orderBy.push({ createdAt: 'desc' });
+
+    const [services, total] = await Promise.all([
+      this.prisma.service.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy,
+        include: {
+          variations: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          vendorServices: {
+            where: {
+              isActive: true,
+            },
+            select: {
+              vendor: {
+                select: {
+                  userId: true,
+                  businessName: true,
+                  logoUrl: true,
+                  rating: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+
+      this.prisma.service.count({ where }),
+    ]);
+
+    return {
+      data: services.map((service) => this.attachServiceVendors(service)),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findServicesByCategory(
+    categoryId: number,
+    limit: number,
+    page: number,
+  ) {
+    const skip = (page - 1) * limit;
+    const where = { categoryId };
+
+    const [services, total] = await Promise.all([
+      this.prisma.service.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          createdAt: 'desc',
+        },
+        include: {
+          variations: true,
+        },
+      }),
+
+      this.prisma.service.count({ where }),
+    ]);
+
+    return {
+      data: services,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findServiceIdsByCategoryIds(

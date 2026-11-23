@@ -1,6 +1,4 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { jwtConstants } from 'src/auth/constant';
+import { forwardRef, Module } from '@nestjs/common';
 import { CategoryModule } from 'src/category/category.module';
 import { SupabaseModule } from 'src/common/supabase/supabase.module';
 import { PrismaService } from 'src/prisma.service';
@@ -15,13 +13,9 @@ import { VendorService } from './vendor.service';
   imports: [
     UserModule,
     ServicesModule,
-    CategoryModule,
+    forwardRef(() => CategoryModule),
     SupabaseModule,
-    JwtModule.register({
-      global: true,
-      secret: jwtConstants.secret,
-      signOptions: { expiresIn: 2592000 }, // 1 day
-    }),
   ],
+  exports: [VendorService],
 })
 export class VendorModule {}
